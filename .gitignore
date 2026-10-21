@@ -1,0 +1,17 @@
+node_modules/
+dist/
+baseline/
+.env
+.env.*
+!.env.example
+*.log
+*.pem
+*.key
+coverage/
+.DS_Store
+Thumbs.db
+tasks/
+evidence/
+real-artifacts/
+.codex-dsh-bridge/
+.dsh/

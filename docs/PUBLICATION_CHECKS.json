@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-21",
+  "sourceBaseline": "1.0.2",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "24.18.1"
+  },
+  "checks": [
+    {
+      "command": "npm ci --ignore-scripts --no-audit --no-fund",
+      "exitCode": 0
+    },
+    {
+      "command": "npm test",
+      "exitCode": 0,
+      "usesModelRequests": false,
+      "tests": 106,
+      "passed": 106,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0
+    }
+  ],
+  "realModelAcceptanceRepeated": false,
+  "linuxCi": "Check the GitHub Actions run for the current commit; workflow configuration alone is not a passing result."
+}
