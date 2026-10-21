@@ -34,7 +34,7 @@ npm run build
 npm test
 ```
 
-`npm test` 使用脚本化运行时，不发起模型请求。真实任务还需要自行安装社区版 DSH 运行时，并配置供应商凭据。开发基线使用 `@deepseek-ai/dsh` 0.2.1-rc.2；本仓库不附带该运行时、桌面安装包或任何账号凭据。
+`npm test` 使用脚本化运行时和临时包元数据，不需要安装 DSH，也不发起模型请求。另用 `npm run test:installed-runtime` 对真实安装执行两项只读检查，缺失安装会失败。真实任务还需要自行安装社区版 DSH 运行时，并配置供应商凭据。开发基线使用 `@deepseek-ai/dsh` 0.2.1-rc.2；本仓库不附带该运行时、桌面安装包或任何账号凭据。
 
 MCP 启动命令为 `node <本仓库绝对路径>/dist/src/main.js`。运行时位置、允许的工作区和私有任务目录分别通过 `DSH_BRIDGE_RUNTIME_ROOT`、`DSH_BRIDGE_ALLOWED_ROOTS`、`DSH_BRIDGE_DATA_ROOT` 设置。完整变量表及可选执行档位的本地基线生成方法见 [英文说明](README.md)。
 

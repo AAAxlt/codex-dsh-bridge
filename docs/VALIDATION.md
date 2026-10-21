@@ -8,6 +8,8 @@ The upload starts from the 1.0.2 development candidate. On 2026-10-21, all **34*
 
 No DSH binaries, SDK packages, private task homes, model logs, machine credentials, or installation-specific baselines are included. Publication does not replace the existing local runtime or switch its launcher.
 
+The first clean GitHub run exposed two read-only unit assertions coupled to an installed DSH bundle. These assertions were preserved in the opt-in `test:installed-runtime` suite. Ordinary unit tests now exercise metadata classification and method scanning with a temporary, non-executable sample; this is not presented as real-runtime acceptance. Production source files are unchanged.
+
 ## Earlier development checks — 2026-10-20
 
 The locally retained 1.0.2 delivery record reports:

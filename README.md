@@ -34,9 +34,11 @@ npm run build
 npm test
 ```
 
-The ordinary test suite uses a scripted runtime and makes no model requests. The initial automated CI targets Ubuntu. Some Windows tests retain the original `D:\AGENTS` scratch-directory convention; Windows CI portability remains unfinished.
+The ordinary suite uses scripted execution and synthetic package metadata, requires no installed DSH runtime, and makes no model requests. The initial automated CI targets Ubuntu. Some Windows tests retain the original `D:\AGENTS` scratch-directory convention; Windows CI portability remains unfinished.
 
 Actual delegation additionally needs a separately installed **community DSH runtime**. The development baseline used `@deepseek-ai/dsh` **0.2.1-rc.2**. DSH and its SDK packages are not bundled or installed by this repository. Compatibility with later versions must be checked rather than assumed.
+
+After configuring that installation, `npm run test:installed-runtime` runs two additional read-only checks against the actual bundle. Those checks fail when the installation is missing; they never fall back to synthetic metadata. They do not test model reachability.
 
 Configure the MCP server to execute `node /absolute/path/to/codex-dsh-bridge/dist/src/main.js` over stdio. Set these environment variables in the launcher or MCP server configuration:
 

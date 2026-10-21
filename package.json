@@ -24,6 +24,7 @@
     "pretest": "npm run build",
     "test": "node --test-isolation=none dist/test/unit.test.js && node --test-isolation=none dist/test/execution-profiles.test.js && node --test-isolation=none dist/test/tasks.test.js && node --test-isolation=none dist/test/process-tree.test.js && node --test-isolation=none dist/test/e2e-verdict.test.js && node --test-isolation=none dist/test/server.test.js && node --test-isolation=none dist/test/wait-contract.test.js && node --test-isolation=none dist/test/runtime-exit.test.js && node --test-isolation=none dist/test/cancel-evidence.test.js && node --test-isolation=none dist/test/host-boundary.test.js && npm run test:reliability",
     "test:reliability": "node --test-isolation=none dist/test/reliability.test.js",
+    "test:installed-runtime": "npm run build && node --test-isolation=none dist/test/installed-runtime.test.js",
     "probe": "node scripts/real-capabilities.mjs",
     "e2e:model": "node scripts/e2e-real.mjs",
     "sandbox:check": "node scripts/sandbox-capability.mjs",

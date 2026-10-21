@@ -1,143 +1,182 @@
 {
   "baseline": "1.0.2",
-  "sourceFileCount": 34,
-  "notes": "Development files are unchanged except package metadata and removal of one trailing blank line in test/tasks.test.ts. Documentation, license, ignore rules and CI were added separately.",
+  "sourceFileCount": 35,
+  "notes": "Production src/ is unchanged. Publication adds package metadata, separates installed-runtime tests from temporary-metadata unit tests, and removes one trailing blank line in test/tasks.test.ts. Documentation, license, ignore rules and CI were added separately.",
   "files": {
     "USAGE.md": {
       "sha256": "3b292d43ed583eb65aabfa5261881f0029ed847ca3b1b2f9109579d920156eda",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "maintenance/guard.mjs": {
       "sha256": "0eae45ff5de074e94cfb5fa259997d2fac4b906f3b2427dc3772a08e17490429",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "package-lock.json": {
       "sha256": "177477f307f9b00def1fed1d7da53562f7265a77539ef7fda213d9746c0274c8",
-      "changedForPublication": true
+      "changedForPublication": true,
+      "addedForPublication": false
     },
     "package.json": {
-      "sha256": "d982adcf943d87a39213d5f1111af7664e296589053e1cc3ef53b28cdeb05942",
-      "changedForPublication": true
+      "sha256": "0a92173dda6a944ade1f8db22670f9bae82663e0d1d65f7d19e972d8abe31c32",
+      "changedForPublication": true,
+      "addedForPublication": false
     },
     "plugin/dsh-preset-sdk-server.mjs": {
       "sha256": "a5bbffb43c72a5a8999c3ea0b090e19398dfaa59baad552c8873fce27d400122",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "plugin/preset-plugins.native.yml": {
       "sha256": "6fdcb764325b3b76b485354671095226d82e367dd1d6417a9743a0478c76580c",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "plugin/preset-plugins.ptc.yml": {
       "sha256": "227bc1c0aee7dd5be389d987ce1f9ec9206c2337748575088bca351232f04f59",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "scripts/e2e-cancel.mjs": {
       "sha256": "9e3a3ff9b120097f6ccd7445b14633483304bb0843f43d754f038fdc879d87c6",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "scripts/e2e-real.mjs": {
       "sha256": "d6e082caac130646fe33d61ff9e72e3e2fa844101714abb6fe368b7642ebdaae",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "scripts/lib/e2e-verdict.mjs": {
       "sha256": "aefc38518cc529868b634f7b11b8251602524ebcb38e8f985d5d4a72463da8c7",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "scripts/real-capabilities.mjs": {
       "sha256": "f92336fd44aca04e491174d6170cd74061e1bae956ff2af340b16173cc4077b7",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "scripts/sandbox-capability.mjs": {
       "sha256": "bbdb232500046d039f99118643ae20013147ffb520d9eee90b8db28fd0507304",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "src/config.ts": {
       "sha256": "9ced24f83be2bb81ffdb5c8487fad7f1ff85d581c7ee583455466c6747c8b699",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "src/evidence.ts": {
       "sha256": "6ace0e7a3d4a0bfe6b10e77df4c7520fba835d7120ecf37c1dfe6f1b70fb2aa6",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "src/execution-profiles.ts": {
       "sha256": "f2c2ee58cd5fa525dc3e9d43d456b3c4b2bde1fa21018f3cb2f4858a7447298e",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "src/main.ts": {
       "sha256": "621735c27fa0942f35ff6b3b717b79febc7d04be2bafcdcbb403daf75301c65b",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "src/prompts.ts": {
       "sha256": "815bdd616387ac1dd21c84752a6aedce46d38b72fcb3ee87b9019d05610d64fe",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "src/runtime.ts": {
       "sha256": "42140727e3da4925b648c27a792f74da95cad384876f7657c626356f03525587",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "src/server.ts": {
       "sha256": "408d0a3e79a28592cfcac6ff7f4160715d319c9b1a90fa3c20fd5bf9a29dffcf",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "src/tasks.ts": {
       "sha256": "4641bcbae88d7b76384f747951912ac5ac547120c98cd4fac2bfdc1b52456a93",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "test/cancel-evidence.test.ts": {
       "sha256": "17bb34fc0921250c9d95f1d398364ae5ba655a095e79dc0e851c330b1dee6281",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "test/e2e-verdict.test.ts": {
       "sha256": "d5e46795513f387c54318cb0ca61e1ba711090c12c8eb33fd22fc8db05177ddf",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "test/execution-profiles.test.ts": {
       "sha256": "f23c8ef9e1b2d833ece4b41e2f4dda8d053f6676704c368a22bee40733c3c9b4",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "test/fixtures/fake-runtime.mjs": {
       "sha256": "e6701e60656b35e57b497f7b41b58d2af2e5129909e68ad5b9209f00eebfcd39",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "test/helpers.ts": {
       "sha256": "e447a37d96f6c0a7a2a72e9acb4ca1251665ef41ee7830173b7af8ce196306f5",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "test/host-boundary.test.ts": {
       "sha256": "afefd8b6ef343b2a3991b47ce395f88241009a3ac6826eccd221311fef69d4a7",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
+    },
+    "test/installed-runtime.test.ts": {
+      "sha256": "8dc76637f425457f83e94b4352594f4787c84c4d22a9cfc6dd6fe24aa9d289ac",
+      "changedForPublication": true,
+      "addedForPublication": true
     },
     "test/process-tree.test.ts": {
       "sha256": "24022872b982d7e6d5abfd84c61c68fa3d1a3734262dc3f979b9bfdb791816cb",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "test/reliability.test.ts": {
       "sha256": "402192c80c9f82414a6339fd70907959e2a018ddcc5322f9fa8844c071b36338",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "test/runtime-exit.test.ts": {
       "sha256": "1d822339483eff7bebfd27eb69f1442c81aec449279857f845b759f3e35678f1",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "test/server.test.ts": {
       "sha256": "f0432143dec8783087da0a3aba6cf2f087c5f83c0987b0549f3557ce04d3670c",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "test/tasks.test.ts": {
       "sha256": "5fc931cb455024206f832ce741274214dc968a75c4b3201812113fdc43aa5cc6",
-      "changedForPublication": true
+      "changedForPublication": true,
+      "addedForPublication": false
     },
     "test/unit.test.ts": {
-      "sha256": "ab1f3cdfec35d6309d44d8d37572717e6882adb6a308cf906a31a0be749b62da",
-      "changedForPublication": false
+      "sha256": "361d5eb44c905be9c2de17b8237067b249f55a945ce31920ed9566693d4b649c",
+      "changedForPublication": true,
+      "addedForPublication": false
     },
     "test/wait-contract.test.ts": {
       "sha256": "7b582b8a7e5a997c22ac34f9e52f96b9bb93261b543017be81d939fbe5a0ffe1",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     },
     "tsconfig.json": {
       "sha256": "27a632d784fdb5600b69593201293d4a2f35e23ed8fdadaff589113e5ea66508",
-      "changedForPublication": false
+      "changedForPublication": false,
+      "addedForPublication": false
     }
   }
 }

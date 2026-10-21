@@ -1,14 +1,14 @@
 /**
  * Unit tests for the boundary guard, the read-only probes and the evidence scrubber.
- * Runs against the REAL community-edition bundle; only the allowed roots are redirected
- * so the test can create and reject its own directories.
+ * Uses temporary package metadata and SDK method strings, not an installed DSH runtime.
+ * Real installation assertions live in installed-runtime.test.ts and are opt-in.
  */
 import assert from 'node:assert/strict';
-import {mkdirSync, realpathSync, rmSync, unlinkSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, realpathSync, rmSync, unlinkSync, writeFileSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {after, before, describe, test} from 'node:test';
+import {after, describe, test} from 'node:test';
 
 const TEST_ROOT = process.platform === 'win32'
   ? 'D:\\AGENTS\\temp\\codex-dsh-bridge-tests'
@@ -19,10 +19,22 @@ const SECOND_ROOT = process.platform === 'win32'
 /** A real directory that is NOT under any allowed root: the parent of the test root. */
 const OUTSIDE = path.dirname(TEST_ROOT);
 
-before(() => {
-  process.env['DSH_BRIDGE_ALLOWED_ROOTS'] = [TEST_ROOT, SECOND_ROOT].join(path.delimiter);
-  mkdirSync(TEST_ROOT, {recursive: true});
-});
+// Set configuration before importing its module-level constants. This sample is
+// deliberately not executable: it tests metadata discovery and text scanning only.
+mkdirSync(TEST_ROOT, {recursive: true});
+const UNIT_RUNTIME_ROOT = mkdtempSync(path.join(TEST_ROOT, 'probe-package-'));
+const packageRoot = path.join(UNIT_RUNTIME_ROOT, 'node_modules', '@deepseek-ai');
+const launcherRoot = path.join(packageRoot, 'dsh');
+const sdkRoot = path.join(packageRoot, 'dsh-sdk-protocol', 'lib');
+mkdirSync(path.join(launcherRoot, 'lib'), {recursive: true});
+mkdirSync(sdkRoot, {recursive: true});
+writeFileSync(path.join(launcherRoot, 'package.json'), JSON.stringify({name: '@deepseek-ai/dsh', version: '0.0.0-unit-test'}));
+writeFileSync(path.join(launcherRoot, 'lib', 'bin.js'), 'throw new Error("metadata sample must never execute");\n');
+writeFileSync(path.join(sdkRoot, 'registered-methods.js'), 'export const methods = ["initialize", "session/prompt", "shutdown"];\n');
+process.env['DSH_BRIDGE_RUNTIME_ROOT'] = UNIT_RUNTIME_ROOT;
+process.env['DSH_BRIDGE_CLI_ENTRY'] = path.join(launcherRoot, 'lib', 'bin.js');
+process.env['DSH_BRIDGE_ALLOWED_ROOTS'] = [TEST_ROOT, SECOND_ROOT].join(path.delimiter);
+process.env['DSH_BRIDGE_DESKTOP_PROFILE_PATCH'] = path.join(UNIT_RUNTIME_ROOT, 'no-desktop-profile.yml');
 
 const config = await import('../src/config.js');
 const evidence = await import('../src/evidence.js');
@@ -91,15 +103,14 @@ describe('workspace boundary guard', () => {
 });
 
 describe('CLI entry identification', () => {
-  test('identifies the entry by the package it lives in, not by the configured path', () => {
-    // This suite runs against the REAL pinned bundle - no test-double override is set here - and
-    // on Linux that bundle lives at a completely different path than it does on Windows.
+  test('identifies package metadata in a temporary tree, distinct from an executable runtime check', () => {
+    // A package-name classification is not proof that this synthetic tree is a working SDK.
     const identity = config.CLI_ENTRY_IDENTITY;
     assert.equal(identity.path, config.CLI_ENTRY);
-    assert.equal(identity.exists, true, `configured CLI entry is missing: ${identity.path}`);
-    assert.equal(identity.kind, 'real-dsh', `the pinned runtime entry must identify as a real DSH package: ${identity.reason}`);
+    assert.equal(identity.exists, true, `sample CLI entry is missing: ${identity.path}`);
+    assert.equal(identity.kind, 'real-dsh', `package metadata classification failed: ${identity.reason}`);
     assert.equal(identity.packageName, '@deepseek-ai/dsh');
-    assert.ok(typeof identity.packageVersion === 'string' && identity.packageVersion.length > 0, 'the DSH package version must be reported');
+    assert.equal(identity.packageVersion, '0.0.0-unit-test');
     assert.equal(config.CLI_ENTRY_IS_REAL, true);
 
     // The scripted double must be recognised as one, so the real-DSH credential gate stays open.
@@ -118,17 +129,17 @@ describe('CLI entry identification', () => {
 });
 
 describe('read-only SDK method probe', () => {
-  test('finds the three methods the bridge uses in the pinned bundle', () => {
+  test('finds registered method strings in a synthetic SDK package without executing it', () => {
     const probe = config.probeSdkMethods();
-    assert.equal(probe.available, true, 'the pinned runtime must be readable');
+    assert.equal(probe.available, true, 'the synthetic package must be readable');
     assert.equal(probe.error, null, `probe reported: ${probe.error}`);
     assert.equal(probe.truncated, false, 'the scan must complete within its byte budget, not silently stop early');
-    assert.ok(probe.scannedFiles > 0, 'the pinned runtime must be readable');
+    assert.ok(probe.scannedFiles > 0, 'the synthetic package must be readable');
     assert.ok(probe.scannedBytes > 0);
     for (const method of config.SDK_METHODS) {
       const found = probe.methods.find((m) => m.method === method);
       assert.ok(found, `${method} must appear in the probe list`);
-      assert.equal(found.found, true, `${method} was not found in the pinned bundle`);
+      assert.equal(found.found, true, `${method} was not found in the synthetic package`);
       assert.ok(found.files.length > 0);
     }
   });
@@ -285,4 +296,7 @@ describe('stage prompts', () => {
   });
 });
 
-after(() => { /* the test root is intentionally left in place for post-mortem reading */ });
+after(() => {
+  assert.equal(path.dirname(realpathSync(UNIT_RUNTIME_ROOT)), realpathSync(TEST_ROOT));
+  rmSync(UNIT_RUNTIME_ROOT, {recursive: true, force: true});
+});

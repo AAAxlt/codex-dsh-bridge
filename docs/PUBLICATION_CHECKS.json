@@ -20,8 +20,31 @@
       "failed": 0,
       "cancelled": 0,
       "skipped": 0
+    },
+    {
+      "command": "node --test-isolation=none dist/test/installed-runtime.test.js",
+      "exitCode": 0,
+      "usesModelRequests": false,
+      "tests": 2,
+      "passed": 2,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    {
+      "command": "node --test-isolation=none dist/test/installed-runtime.test.js",
+      "configuration": "DSH_BRIDGE_RUNTIME_ROOT points to an absent directory",
+      "exitCode": 1,
+      "expectedFailure": true,
+      "usesModelRequests": false,
+      "tests": 2,
+      "passed": 0,
+      "failed": 2,
+      "cancelled": 0,
+      "skipped": 0
     }
   ],
   "realModelAcceptanceRepeated": false,
-  "linuxCi": "Check the GitHub Actions run for the current commit; workflow configuration alone is not a passing result."
+  "linuxCi": "Check the GitHub Actions run for the current commit; workflow configuration alone is not a passing result.",
+  "publicationChanges": "Preserved the two installed-bundle assertions as explicit integration tests; the normal unit suite uses temporary metadata. Production src/ is unchanged."
 }
