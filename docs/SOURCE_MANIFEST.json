@@ -14,7 +14,7 @@
       "addedForPublication": false
     },
     "package-lock.json": {
-      "sha256": "177477f307f9b00def1fed1d7da53562f7265a77539ef7fda213d9746c0274c8",
+      "sha256": "dcc224a9aa3d75af1cd7a04cf124d7a63d841f8f028867b15260f9f618d66aab",
       "changedForPublication": true,
       "addedForPublication": false
     },
@@ -178,5 +178,6 @@
       "changedForPublication": false,
       "addedForPublication": false
     }
-  }
+  },
+  "hashScope": "SHA-256 of committed file bytes. Git normalized the original lockfile newlines during the initial upload."
 }
