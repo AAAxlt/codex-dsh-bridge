@@ -1,183 +1,249 @@
 {
-  "baseline": "1.0.2",
-  "sourceFileCount": 35,
-  "notes": "Production src/ is unchanged. Publication adds package metadata, separates installed-runtime tests from temporary-metadata unit tests, and removes one trailing blank line in test/tasks.test.ts. Documentation, license, ignore rules and CI were added separately.",
+  "baseline": "1.0.4",
+  "date": "2026-10-23",
+  "sourceFileCount": 60,
+  "notes": "Production src/ matches the development candidate exactly. Publication retains portable unit metadata and opt-in installed-runtime tests; baseline refusal uses an empty temporary registry. Package metadata and public docs are adapted. Local runtime baselines and private evidence are excluded.",
+  "manifestSha256": "21fb4b532f3926bca6a6921b30baf175b254c9671d3cd524379cfa05a6e85ea8",
   "files": {
+    ".gitattributes": {
+      "sha256": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
+      "matchesDevelopmentCandidate": null
+    },
+    ".github/workflows/test.yml": {
+      "sha256": "7a266d54cffd44298702b9b63962dccf126f0a93efc923334cc1099835dca911",
+      "matchesDevelopmentCandidate": null
+    },
+    ".gitignore": {
+      "sha256": "ecb080bc12cc01be2ea35767a36e6f9d406a3fdf17756f17d4d6f71694f16a45",
+      "matchesDevelopmentCandidate": null
+    },
+    "LICENSE": {
+      "sha256": "288d559f6ae7416a8e63d4dfb9958ed34e861b4665a6427365b3aa92110a5206",
+      "matchesDevelopmentCandidate": null
+    },
+    "README.md": {
+      "sha256": "2cb2e7dc2988c791da9a721ae1744bfb0b2d44c209691f93f30d1ee154a0de7a",
+      "matchesDevelopmentCandidate": null
+    },
+    "README.zh-CN.md": {
+      "sha256": "29b2e370c94d3615dd256b44b71c5370484bff75109ae835100852c89b7a12a1",
+      "matchesDevelopmentCandidate": null
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "sha256": "30d03cd66154acf5a2c5bdea04581fa33476eaf4e5a172ab29492803c9b53042",
+      "matchesDevelopmentCandidate": null
+    },
     "USAGE.md": {
-      "sha256": "3b292d43ed583eb65aabfa5261881f0029ed847ca3b1b2f9109579d920156eda",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "sha256": "60e25d77da72ea67adb2e277917674f0d2d23b546a92b5cd6c5b085df6d65c84",
+      "matchesDevelopmentCandidate": false
+    },
+    "docs/OPTIMIZATION.md": {
+      "sha256": "5716c22ef2302bb7580fefb7d59071c5a8d58d3eaddc26395eeaa1915be7cf1f",
+      "matchesDevelopmentCandidate": false
+    },
+    "docs/RELEASE-1.0.4.md": {
+      "sha256": "4d1529fe424398b7366fed01c0541e762f29e7b25b0fa01dae240277ce0ccdff",
+      "matchesDevelopmentCandidate": null
     },
     "maintenance/guard.mjs": {
-      "sha256": "0eae45ff5de074e94cfb5fa259997d2fac4b906f3b2427dc3772a08e17490429",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "sha256": "99282cbb17e26a8f88a8754ad88a4dc9568b06c371d1290237c62b7dec474a33",
+      "matchesDevelopmentCandidate": true
     },
     "package-lock.json": {
-      "sha256": "dcc224a9aa3d75af1cd7a04cf124d7a63d841f8f028867b15260f9f618d66aab",
-      "changedForPublication": true,
-      "addedForPublication": false
+      "sha256": "0c2869aec2f3a01e2f61b0da903f60ece94792c673f5425352c1db799d441102",
+      "matchesDevelopmentCandidate": false
     },
     "package.json": {
-      "sha256": "0a92173dda6a944ade1f8db22670f9bae82663e0d1d65f7d19e972d8abe31c32",
-      "changedForPublication": true,
-      "addedForPublication": false
+      "sha256": "d6d5426e1c5c5ca38381b03205a993d474ab28520cef01b61e1180634341ee45",
+      "matchesDevelopmentCandidate": false
     },
     "plugin/dsh-preset-sdk-server.mjs": {
       "sha256": "a5bbffb43c72a5a8999c3ea0b090e19398dfaa59baad552c8873fce27d400122",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "plugin/preset-plugins.native.yml": {
       "sha256": "6fdcb764325b3b76b485354671095226d82e367dd1d6417a9743a0478c76580c",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "plugin/preset-plugins.ptc.yml": {
       "sha256": "227bc1c0aee7dd5be389d987ce1f9ec9206c2337748575088bca351232f04f59",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
+    },
+    "scripts/e2e-auto-repair.mjs": {
+      "sha256": "40bc78673c342ca70626ab6a819cf143b608d18bd3ce16460341da55df7e4e05",
+      "matchesDevelopmentCandidate": true
     },
     "scripts/e2e-cancel.mjs": {
       "sha256": "9e3a3ff9b120097f6ccd7445b14633483304bb0843f43d754f038fdc879d87c6",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "scripts/e2e-real.mjs": {
       "sha256": "d6e082caac130646fe33d61ff9e72e3e2fa844101714abb6fe368b7642ebdaae",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
+    },
+    "scripts/e2e-smoke.mjs": {
+      "sha256": "c87cc8943ce831456ad97bca42d7ebd7a5d4aac337068f507e274ba998761b04",
+      "matchesDevelopmentCandidate": true
     },
     "scripts/lib/e2e-verdict.mjs": {
       "sha256": "aefc38518cc529868b634f7b11b8251602524ebcb38e8f985d5d4a72463da8c7",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
+    },
+    "scripts/lib/npm-invocation.mjs": {
+      "sha256": "7bd302fdd11d1c00592b911a9fb1a975f9e636d2c216aa93b67ec8479cef3c19",
+      "matchesDevelopmentCandidate": true
+    },
+    "scripts/lib/verify-checks.mjs": {
+      "sha256": "e299732902083548836793d5d35eff32ee98b2bd66ad39b75ed999d7cdbff438",
+      "matchesDevelopmentCandidate": true
     },
     "scripts/real-capabilities.mjs": {
       "sha256": "f92336fd44aca04e491174d6170cd74061e1bae956ff2af340b16173cc4077b7",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "scripts/sandbox-capability.mjs": {
       "sha256": "bbdb232500046d039f99118643ae20013147ffb520d9eee90b8db28fd0507304",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
+    },
+    "scripts/verify-delivery.mjs": {
+      "sha256": "e065f2bb140f4b2c62f722f25aa4e57ac6e76e38da54376f76f607e549007285",
+      "matchesDevelopmentCandidate": true
     },
     "src/config.ts": {
-      "sha256": "9ced24f83be2bb81ffdb5c8487fad7f1ff85d581c7ee583455466c6747c8b699",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "sha256": "cc118d7bffa3502fdb8d88a795fa7d82031d101ce9d16e58c7bab5f72d40a2b1",
+      "matchesDevelopmentCandidate": true
+    },
+    "src/delivery-preset.ts": {
+      "sha256": "58df8f5b42d2a10839fc6e081e5e144619723f5fe2358d3bd293e9f222fb87d6",
+      "matchesDevelopmentCandidate": true
+    },
+    "src/delivery.ts": {
+      "sha256": "227c176a0b8204e742a3117ed744f7a66a66d5f6088c857e7ec676e55c1c9c86",
+      "matchesDevelopmentCandidate": true
     },
     "src/evidence.ts": {
       "sha256": "6ace0e7a3d4a0bfe6b10e77df4c7520fba835d7120ecf37c1dfe6f1b70fb2aa6",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "src/execution-profiles.ts": {
       "sha256": "f2c2ee58cd5fa525dc3e9d43d456b3c4b2bde1fa21018f3cb2f4858a7447298e",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "src/main.ts": {
       "sha256": "621735c27fa0942f35ff6b3b717b79febc7d04be2bafcdcbb403daf75301c65b",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "src/prompts.ts": {
-      "sha256": "815bdd616387ac1dd21c84752a6aedce46d38b72fcb3ee87b9019d05610d64fe",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "sha256": "639542e4d38ce3e340899c5e93b399acda23d3931d6866482c521bb75b046d6a",
+      "matchesDevelopmentCandidate": true
     },
     "src/runtime.ts": {
       "sha256": "42140727e3da4925b648c27a792f74da95cad384876f7657c626356f03525587",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "src/server.ts": {
-      "sha256": "408d0a3e79a28592cfcac6ff7f4160715d319c9b1a90fa3c20fd5bf9a29dffcf",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "sha256": "705ffc2a040736085ee36c2cbcce0a02985abfca841aa3d9e2a12a40f959ea24",
+      "matchesDevelopmentCandidate": true
     },
     "src/tasks.ts": {
-      "sha256": "4641bcbae88d7b76384f747951912ac5ac547120c98cd4fac2bfdc1b52456a93",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "sha256": "d00708ee069cf92db912e748d7cd214632a597df76c7e800d36e2ed6b6805f6a",
+      "matchesDevelopmentCandidate": true
+    },
+    "test/auto-repair-review.test.ts": {
+      "sha256": "874b690b816fd4577314673d9fde2abaeca8d893afcad11866d5bf3950599209",
+      "matchesDevelopmentCandidate": true
+    },
+    "test/auto-repair.test.ts": {
+      "sha256": "8de9aca6d4ae458962ea0393ed6c0987d8156e590787fda249456258eba8a85c",
+      "matchesDevelopmentCandidate": true
+    },
+    "test/baseline-selection.test.ts": {
+      "sha256": "4ca246f6b70cd9f25dab52d9cee17a2dac2f178f7bd1f64289e82d4a3807fdbf",
+      "matchesDevelopmentCandidate": false
     },
     "test/cancel-evidence.test.ts": {
       "sha256": "17bb34fc0921250c9d95f1d398364ae5ba655a095e79dc0e851c330b1dee6281",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
+    },
+    "test/delivery-integration.test.ts": {
+      "sha256": "745010420cc24acc2d9b0f477c0debc12d6d58839b48de0e997543ac17fd1ca2",
+      "matchesDevelopmentCandidate": true
+    },
+    "test/delivery-preset.test.ts": {
+      "sha256": "4c8ce8e9b6aa25c344f2e1bae9bb3691cbd3c9179af433a1b79a31066b330b58",
+      "matchesDevelopmentCandidate": true
+    },
+    "test/delivery.test.ts": {
+      "sha256": "7035719a81dd2084407c8f3ad56e62c7e6009499fd1f3bd9a6f888c991ee3cf8",
+      "matchesDevelopmentCandidate": true
     },
     "test/e2e-verdict.test.ts": {
       "sha256": "d5e46795513f387c54318cb0ca61e1ba711090c12c8eb33fd22fc8db05177ddf",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "test/execution-profiles.test.ts": {
       "sha256": "f23c8ef9e1b2d833ece4b41e2f4dda8d053f6676704c368a22bee40733c3c9b4",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "test/fixtures/fake-runtime.mjs": {
-      "sha256": "e6701e60656b35e57b497f7b41b58d2af2e5129909e68ad5b9209f00eebfcd39",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "sha256": "0e7fcef9d73cdff64d907c74a039a864fce9c42d4b2d4bbf2557d7f1a24c2565",
+      "matchesDevelopmentCandidate": true
     },
     "test/helpers.ts": {
-      "sha256": "e447a37d96f6c0a7a2a72e9acb4ca1251665ef41ee7830173b7af8ce196306f5",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "sha256": "80db03071187f7cddb14659786b2cbf0e1f9f2f5bb216fd99099548cabae4411",
+      "matchesDevelopmentCandidate": true
     },
     "test/host-boundary.test.ts": {
       "sha256": "afefd8b6ef343b2a3991b47ce395f88241009a3ac6826eccd221311fef69d4a7",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "test/installed-runtime.test.ts": {
       "sha256": "8dc76637f425457f83e94b4352594f4787c84c4d22a9cfc6dd6fe24aa9d289ac",
-      "changedForPublication": true,
-      "addedForPublication": true
+      "matchesDevelopmentCandidate": null
+    },
+    "test/npm-invocation.test.ts": {
+      "sha256": "f6d539f2f8060e7bce93af9c43af5d3e8ae110e10009a84d6fb650932ab63b32",
+      "matchesDevelopmentCandidate": true
+    },
+    "test/observability.test.ts": {
+      "sha256": "a5214c53de5376ec6a973737be0a8319b5b5677087c220f20d3f7ea04fbe20ca",
+      "matchesDevelopmentCandidate": true
     },
     "test/process-tree.test.ts": {
       "sha256": "24022872b982d7e6d5abfd84c61c68fa3d1a3734262dc3f979b9bfdb791816cb",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "test/reliability.test.ts": {
       "sha256": "402192c80c9f82414a6339fd70907959e2a018ddcc5322f9fa8844c071b36338",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "test/runtime-exit.test.ts": {
       "sha256": "1d822339483eff7bebfd27eb69f1442c81aec449279857f845b759f3e35678f1",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "test/server.test.ts": {
-      "sha256": "f0432143dec8783087da0a3aba6cf2f087c5f83c0987b0549f3557ce04d3670c",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "sha256": "09b9f928ca7878a50e4e4e254f6d300c5361ed3f97d5e13575d9b6fb4fa28f92",
+      "matchesDevelopmentCandidate": true
     },
     "test/tasks.test.ts": {
       "sha256": "5fc931cb455024206f832ce741274214dc968a75c4b3201812113fdc43aa5cc6",
-      "changedForPublication": true,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": false
     },
     "test/unit.test.ts": {
-      "sha256": "361d5eb44c905be9c2de17b8237067b249f55a945ce31920ed9566693d4b649c",
-      "changedForPublication": true,
-      "addedForPublication": false
+      "sha256": "1392ed0f49a548abbe45164c414515ce1a9b4253c5a41d04174b13a1a498b0a4",
+      "matchesDevelopmentCandidate": false
+    },
+    "test/verify-checks.test.ts": {
+      "sha256": "f72b47afcb57421de30f54dc495e31d0e8a5a41dd22e8166d9582228cffb2eae",
+      "matchesDevelopmentCandidate": true
     },
     "test/wait-contract.test.ts": {
       "sha256": "7b582b8a7e5a997c22ac34f9e52f96b9bb93261b543017be81d939fbe5a0ffe1",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     },
     "tsconfig.json": {
       "sha256": "27a632d784fdb5600b69593201293d4a2f35e23ed8fdadaff589113e5ea66508",
-      "changedForPublication": false,
-      "addedForPublication": false
+      "matchesDevelopmentCandidate": true
     }
-  },
-  "hashScope": "SHA-256 of committed file bytes. Git normalized the original lockfile newlines during the initial upload."
+  }
 }

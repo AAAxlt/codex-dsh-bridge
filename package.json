@@ -1,15 +1,7 @@
 {
   "name": "codex-dsh-bridge",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "private": true,
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/AAAxlt/codex-dsh-bridge.git"
-  },
-  "bugs": {
-    "url": "https://github.com/AAAxlt/codex-dsh-bridge/issues"
-  },
   "description": "Local stdio MCP server that lets Codex delegate task execution to an isolated community-edition DSH SDK runtime process.",
   "type": "module",
   "engines": {
@@ -22,13 +14,13 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "pretest": "npm run build",
-    "test": "node --test-isolation=none dist/test/unit.test.js && node --test-isolation=none dist/test/execution-profiles.test.js && node --test-isolation=none dist/test/tasks.test.js && node --test-isolation=none dist/test/process-tree.test.js && node --test-isolation=none dist/test/e2e-verdict.test.js && node --test-isolation=none dist/test/server.test.js && node --test-isolation=none dist/test/wait-contract.test.js && node --test-isolation=none dist/test/runtime-exit.test.js && node --test-isolation=none dist/test/cancel-evidence.test.js && node --test-isolation=none dist/test/host-boundary.test.js && npm run test:reliability",
+    "test": "node --test-isolation=none dist/test/unit.test.js && node --test-isolation=none dist/test/execution-profiles.test.js && node --test-isolation=none dist/test/baseline-selection.test.js && node --test-isolation=none dist/test/tasks.test.js && node --test-isolation=none dist/test/process-tree.test.js && node --test-isolation=none dist/test/e2e-verdict.test.js && node --test-isolation=none dist/test/server.test.js && node --test-isolation=none dist/test/wait-contract.test.js && node --test-isolation=none dist/test/runtime-exit.test.js && node --test-isolation=none dist/test/cancel-evidence.test.js && node --test-isolation=none dist/test/host-boundary.test.js && node --test-isolation=none dist/test/npm-invocation.test.js && node --test-isolation=none dist/test/verify-checks.test.js && node --test-isolation=none dist/test/observability.test.js && npm run test:reliability && node --test-isolation=none dist/test/delivery-preset.test.js && node --test-isolation=none dist/test/delivery.test.js && node --test-isolation=none dist/test/auto-repair.test.js && node --test-isolation=none dist/test/auto-repair-review.test.js && node --test-isolation=none dist/test/delivery-integration.test.js",
     "test:reliability": "node --test-isolation=none dist/test/reliability.test.js",
-    "test:installed-runtime": "npm run build && node --test-isolation=none dist/test/installed-runtime.test.js",
     "probe": "node scripts/real-capabilities.mjs",
     "e2e:model": "node scripts/e2e-real.mjs",
     "sandbox:check": "node scripts/sandbox-capability.mjs",
-    "start": "node dist/src/main.js"
+    "start": "node dist/src/main.js",
+    "test:installed-runtime": "npm run build && node --test-isolation=none dist/test/installed-runtime.test.js"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.3.1",
@@ -38,5 +30,13 @@
     "@modelcontextprotocol/client": "2.3.1",
     "@types/node": "24.19.2",
     "typescript": "5.9.3"
+  },
+  "license": "MIT",
+  "repository": {
+    "url": "git+https://github.com/AAAxlt/codex-dsh-bridge.git",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/AAAxlt/codex-dsh-bridge/issues"
   }
 }

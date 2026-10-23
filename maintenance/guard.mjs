@@ -15,10 +15,12 @@ export const ASSETS = Object.freeze([
   'plugin/dsh-preset-sdk-server.mjs','plugin/preset-plugins.native.yml',
   'plugin/preset-plugins.ptc.yml','dist/src/execution-profiles.js',
   'dist/src/tasks.js','dist/src/server.js','dist/src/runtime.js',
+  'dist/src/delivery.js','dist/src/delivery-preset.js',
   'dist/src/config.js','dist/src/prompts.js','maintenance/guard.mjs',
 ]);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DEFAULT_BASELINE = path.join(ROOT, 'baseline', 'execution-profiles-baseline.json');
+export const BASELINE_REGISTRY = path.join(ROOT, 'baseline', 'runtime-baselines.json');
 const canonical = value => JSON.stringify(value, null, 2) + '\n';
 const sha = p => crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 function inside(root, target) {
@@ -98,6 +100,65 @@ export function checkBaseline(runtimeRoot, assetsRoot = ROOT, file = DEFAULT_BAS
   }
   return {ok:drift.length === 0, drift, files:Object.keys(actual.files).length, baselineSha256:sha(file)};
 }
+/**
+ * Selects the trusted baseline registered for THIS canonical runtime root. There is deliberately
+ * no fallback to another runtime's baseline: 0.2.0-rc.2 and 0.2.1-rc.2 do not share file hashes.
+ * An unregistered root, a version mismatch, or a missing/escaping baseline file is refused.
+ */
+export function selectBaselineForRuntime(runtimeRoot, assetsRoot = ROOT) {
+  const runtime = realRoot(runtimeRoot);
+  const assets = realRoot(assetsRoot);
+  const registryFile = path.join(assets, 'baseline', 'runtime-baselines.json');
+  let registry;
+  try {
+    registry = JSON.parse(fs.readFileSync(registryFile, 'utf8'));
+  } catch (error) {
+    throw Error(`runtime baseline registry unreadable at ${registryFile}: ${error.message}`);
+  }
+  if (registry?.schema !== 'codex-dsh-bridge/runtime-baselines@1' || !Array.isArray(registry.baselines)) {
+    throw Error(`runtime baseline registry has an unexpected schema: ${registryFile}`);
+  }
+  const registered = [];
+  for (const entry of registry.baselines) {
+    if (!entry || typeof entry !== 'object') throw Error('runtime baseline registry contains a non-object entry');
+    if (typeof entry.id !== 'string' || entry.id.length === 0) throw Error('runtime baseline entry has no id');
+    if (typeof entry.runtimeRoot !== 'string' || !path.isAbsolute(entry.runtimeRoot)) throw Error(`runtime baseline '${entry.id}' needs an absolute runtimeRoot`);
+    if (typeof entry.dshVersion !== 'string' || entry.dshVersion.length === 0) throw Error(`runtime baseline '${entry.id}' needs a dshVersion`);
+    if (typeof entry.baselineFile !== 'string' || entry.baselineFile.length === 0) throw Error(`runtime baseline '${entry.id}' needs a baselineFile`);
+    let entryRoot;
+    try { entryRoot = fs.realpathSync.native(entry.runtimeRoot); } catch { continue; }
+    registered.push({entry, entryRoot});
+    if (entryRoot !== runtime) continue;
+    const pkgFile = path.join(runtime, 'node_modules', '@deepseek-ai', 'dsh', 'package.json');
+    let pkg;
+    try { pkg = JSON.parse(fs.readFileSync(pkgFile, 'utf8')); } catch (error) {
+      throw Error(`runtime identity unreadable at ${pkgFile}: ${error.message}`);
+    }
+    if (pkg.name !== '@deepseek-ai/dsh') throw Error(`runtime identity is not @deepseek-ai/dsh at ${runtime}`);
+    if (pkg.version !== entry.dshVersion) {
+      throw Error(`runtime identity mismatch for '${entry.id}': registry expects dsh ${entry.dshVersion}, actual ${pkg.version} at ${runtime}`);
+    }
+    const baselineFile = path.resolve(assets, entry.baselineFile);
+    let realBaseline;
+    try { realBaseline = fs.realpathSync.native(baselineFile); } catch (error) {
+      throw Error(`registered baseline for '${entry.id}' is missing: ${baselineFile} (${error.message})`);
+    }
+    if (!inside(assets, realBaseline) || !fs.lstatSync(realBaseline).isFile()) {
+      throw Error(`registered baseline for '${entry.id}' is not a regular file inside the assets root: ${realBaseline}`);
+    }
+    return {
+      id: entry.id, runtimeRoot: runtime, dshVersion: pkg.version,
+      baselineFile: realBaseline, baselineSha256: sha(realBaseline),
+      registryFile, note: typeof entry.note === 'string' ? entry.note : null,
+    };
+  }
+  const known = registered.map(({entry, entryRoot}) => `${entry.id}=${entryRoot} (dsh ${entry.dshVersion})`);
+  throw Error(
+    `no trusted baseline registered for runtime root ${runtime}; refusing to reuse another runtime's baseline. `
+    + `Registered roots: [${known.join(', ') || 'none'}]. Add an explicit registry entry and its captured baseline first.`,
+  );
+}
+
 export function enforceBaseline(runtimeRoot, assetsRoot = ROOT, file = DEFAULT_BASELINE) {
   const result = checkBaseline(runtimeRoot, assetsRoot, file);
   if (!result.ok) throw Error('execution profile blocked by baseline drift: ' + JSON.stringify(result.drift));
@@ -111,8 +172,15 @@ function cli() {
     options[key]=args[i+1];
   }
   if (!options['--runtime-root']) throw Error('--runtime-root required');
-  const root=options['--assets-root']??ROOT, file=options['--baseline']??path.join(root,'baseline','execution-profiles-baseline.json');
+  const root=options['--assets-root']??ROOT;
+  let file=options['--baseline'];
+  let selection=null;
+  if(command==='check' && !file){
+    selection=selectBaselineForRuntime(options['--runtime-root'],root);
+    file=selection.baselineFile;
+  }
+  if(!file) file=path.join(root,'baseline','execution-profiles-baseline.json');
   const result=command==='baseline'?writeBaseline(file,options['--runtime-root'],root):checkBaseline(options['--runtime-root'],root,file);
-  console.log(JSON.stringify(result));if(result.ok===false)process.exitCode=1;
+  console.log(JSON.stringify(selection?{...result,selection}:result));if(result.ok===false)process.exitCode=1;
 }
 if(process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url))try{cli();}catch(error){console.error(JSON.stringify({ok:false,error:error.message}));process.exitCode=1;}

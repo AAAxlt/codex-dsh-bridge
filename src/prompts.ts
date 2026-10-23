@@ -5,7 +5,25 @@
  */
 import {BRIDGE_VERSION} from './config.js';
 
-const HOST_CHECK_NOTICE = '## Host verification\nThe bridge runs a separate host check after this turn. Run only task-local checks authorized by the goal; do not run or modify the host verifier.';
+const HOST_CHECK_NOTICE = '## Host verification\nThe bridge runs a separate host check after this turn, and only after a normally completed turn. It is not a substitute for your own acceptance run: do not rely on it, and do not run or modify the host verifier. Run only task-local checks authorized by the goal.';
+
+/**
+ * The job is one complete delivery, not a first draft. This text deliberately does not cap tool
+ * calls or wall-clock effort: the caller's bounded stage budget is the only limit. A failed check
+ * is input to the next repair, not automatically a reason to hand the task back to Codex.
+ */
+function deliveryWorkflow(): string {
+  return [
+    '## Delivery workflow (do the whole unit, then hand back once)',
+    '1. Implement: read the relevant files before editing them, then make the change in place.',
+    '2. Run acceptance: execute the project\'s own real build/test/check commands yourself. Do not invent output or claim a check you did not run.',
+    '3. Analyze failures: read the real error, identify the cause, and fix it. Do not stop at the first failure and do not report every intermediate failure to Codex.',
+    '4. Re-run acceptance after each fix until it passes, or until you have a concrete, evidenced blocker.',
+    '5. Self-review: re-read your diff, check edge cases, compatibility, and that no unrelated file was changed. Run the checks once more after the final edit.',
+    '6. Deliver once: report what changed, exactly what you ran and observed, and only the genuinely unresolved items. A session that merely "completed" is not a product acceptance.',
+    'You may keep a short, honest work log in the workspace (for example DSH_WORKLOG.md) if it helps a later stage; never write invented results into it. The bridge writes its own checkpoint.json and result files automatically — do not fabricate or edit those.',
+  ].join('\n');
+}
 
 /** Compatibility for a still-connected parent using the previous prompt builder.
  * Only the exact Bridge-generated section is removed; user prompts are untouched.
@@ -65,6 +83,8 @@ export function firstStagePrompt(brief: TaskBrief): string {
   parts.push('');
   parts.push('## Acceptance');
   parts.push(brief.acceptance?.trim() ?? '(Codex did not supply an explicit acceptance check)');
+  parts.push('');
+  parts.push(deliveryWorkflow());
   if (brief.verificationCommand && brief.verificationCommand.length > 0) {
     parts.push('');
     parts.push(HOST_CHECK_NOTICE);
@@ -110,6 +130,8 @@ export function continuationPrompt(
     parts.push('## Acceptance for this stage');
     parts.push(brief.acceptance.trim());
   }
+  parts.push('');
+  parts.push(deliveryWorkflow());
   if (brief.constraints && brief.constraints.length > 0) {
     parts.push('');
     parts.push('## Constraints (unchanged)');

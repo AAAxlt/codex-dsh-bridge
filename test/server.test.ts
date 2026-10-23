@@ -7,7 +7,7 @@
  * these tests never spend a model request. The real-model loop lives in e2e-real.test.ts.
  */
 import assert from 'node:assert/strict';
-import {existsSync, readFileSync, rmSync} from 'node:fs';
+import {existsSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {after, before, describe, test} from 'node:test';
 import {
@@ -29,6 +29,7 @@ interface Bridge {
 const TOOL_NAMES = [
   'dsh_get_capabilities', 'dsh_submit_task', 'dsh_get_task', 'dsh_wait_task',
   'dsh_get_result', 'dsh_continue_task', 'dsh_cancel_task',
+  'dsh_export_delivery',
 ];
 
 /** Opens one bridge process with its own scripted-runtime scenario. */
@@ -447,4 +448,28 @@ describe('the fixture is not accidentally reachable from the shipped server', ()
     const main = readFileSync(BRIDGE_MAIN, 'utf8');
     assert.ok(!main.includes('fake-runtime'), 'the shipped entry must not reference a test fixture');
   });
+});
+
+test('complete delivery automatically repairs and explicitly exports through real MCP', async () => {
+  const bridge = await openBridge('success');
+  try {
+    const workspace = freshWorkspace('mcp-complete');
+    const check = path.join(workspace, 'accept.cjs');
+    writeFileSync(check, "if(!require('fs').readFileSync('notes.md','utf8').includes('stage 2')){console.error('must deliver stage 2');process.exit(4)}");
+    const {submit, waited} = await runStage(bridge.client, {workspace, goal: 'Deliver two stages.', deliveryPreset: 'complete', reasoningEffort: 'low', maxTokens: 2048, budgetMs: 30000, verificationCommand: ['node', check], protectedVerificationFiles: [check]});
+    assert.equal(submit.deliveryPreset, 'complete');
+    assert.deepEqual(submit.effectiveParameters, {reasoningEffort: 'low', maxTokens: 2048, budgetMs: 30000});
+    assert.equal((waited.status as {stageCount: number}).stageCount, 2);
+    const result = jsonOf<any>(await call(bridge.client, 'dsh_get_result', {taskId: submit.taskId}));
+    assert.equal(result.bridgeObserved.verification.status, 'passed');
+    assert.equal(result.autoRepair.attempts, 1);
+    assert.ok(result.artifacts.deliveryIndex);
+    const exported = await call(bridge.client, 'dsh_export_delivery', {taskId: submit.taskId, destination: path.join(workspace, 'export')});
+    assert.notEqual(exported.isError, true, textOf(exported));
+    const payload = jsonOf<any>(exported);
+    const index = JSON.parse(readFileSync(payload.indexJson, 'utf8'));
+    assert.equal(index.metrics.codexContinuationCount, 0);
+    assert.equal(index.metrics.autoRepairCount, 1);
+    assert.equal(index.hostVerification.latest.status, 'passed');
+  } finally { await bridge.close(); }
 });

@@ -48,6 +48,69 @@ function runTurn() {
   note(`turn ${current} start scenario=${scenario}`);
   status(sessionId, 'running');
 
+  if (scenario === 'usage_generic_no_total') {
+    event(sessionId, 'turn/start', {turn:current});
+    // Generic aliases with no reported total: 100+10+60+0 is arithmetic only. It may overlap and
+    // must never be promoted to totalTokens.
+    event(sessionId, 'assistant/message', {message:{content:[{type:'text',text:'generic usage without total'}]},usage:{input_tokens:100,output_tokens:10,cacheReadTokens:60,cacheWriteTokens:0}});
+    event(sessionId, 'turn/end', {turn:current, reason:{kind:'completed'}});
+    return;
+  }
+
+  if (scenario === 'usage_resend') {
+    event(sessionId, 'turn/start', {turn:current});
+    // The same message id is sent twice with corrected counters. Only the correction counts.
+    event(sessionId, 'assistant/message', {message:{id:'usage-resend-1',content:[{type:'text',text:'first usage draft'}]},usage:{inputTokens:10,outputTokens:1,cacheReadTokens:100,cacheWriteTokens:2,totalTokens:113}});
+    event(sessionId, 'assistant/message', {message:{id:'usage-resend-1',content:[{type:'text',text:'corrected usage draft'}]},usage:{inputTokens:20,outputTokens:3,cacheReadTokens:200,cacheWriteTokens:4,totalTokens:227}});
+    event(sessionId, 'turn/end', {turn:current, reason:{kind:'completed'}});
+    return;
+  }
+
+  if (scenario === 'tool_resend') {
+    event(sessionId, 'turn/start', {turn:current});
+    event(sessionId, 'tool/call', {callId:'dup-call-1', name:'bash', turn:current, step:1, arguments:'{"command":"false"}'});
+    event(sessionId, 'tool/call', {callId:'dup-call-1', name:'bash', turn:current, step:1, arguments:'{"command":"false"}'});
+    event(sessionId, 'tool/result', {toolCallId:'dup-call-1', message:{content:[{type:'text',text:'command failed'}], isError:true}});
+    event(sessionId, 'tool/result', {toolCallId:'dup-call-1', message:{content:[{type:'text',text:'command failed'}], isError:true}});
+    event(sessionId, 'turn/end', {turn:current, reason:{kind:'completed'}});
+    return;
+  }
+
+  if (scenario === 'many_tools' && current === 1) {
+    event(sessionId, 'turn/start', {turn:current});
+    event(sessionId, 'assistant/message', {message:{content:[{type:'text',text:'stage 1 draft complete after many tool calls'}]},usage:{inputTokens:10,outputTokens:5}});
+    // A fixed sequence, deliberately above the bridge's 60-observation retention cap.
+    for (let i = 1; i <= 75; i += 1) {
+      const callId = `many-${current}-${i}`;
+      event(sessionId, 'tool/call', {callId, name: i % 25 === 0 ? 'bash' : 'read', turn:current, step:i, arguments:JSON.stringify({file_path:`f${i}.txt`})});
+      event(sessionId, 'tool/result', {toolCallId: callId, message:{content:[{type:'text',text:`result ${i}`}], isError: i === 25 || i === 50}});
+    }
+    writeFileSync(`${workspace}/many-tools.txt`, '75 calls\n', 'utf8');
+    event(sessionId, 'turn/end', {turn:current, reason:{kind:'completed'}});
+    return;
+  }
+
+  if (scenario === 'usage_two_stage' || scenario === 'usage_missing' || scenario === 'usage_partial') {
+    event(sessionId, 'turn/start', {turn:current});
+    if (scenario === 'usage_two_stage') {
+      const first = current === 1
+        ? {inputTokens:100, outputTokens:20, cacheReadTokens:1000, cacheWriteTokens:50, totalTokens:1170}
+        : {inputTokens:7, outputTokens:3, cacheReadTokens:10, cacheWriteTokens:0, totalTokens:20, cost:0.0012, currency:'USD'};
+      const second = {input:200, output:30, cacheRead:2000, cacheWrite:60, total:2290};
+      event(sessionId, 'assistant/message', {message:{content:[{type:'text',text:`stage ${current} draft complete`}]},usage:first});
+      if (current === 1) {
+        event(sessionId, 'assistant/message', {message:{content:[{type:'text',text:'stage 1 self-review complete'}]},usage:second});
+      }
+    } else if (scenario === 'usage_partial') {
+      event(sessionId, 'assistant/message', {message:{content:[{type:'text',text:'partial usage event'}]},usage:{inputTokens:10}});
+      event(sessionId, 'assistant/message', {message:{content:[{type:'text',text:'complete usage event'}]},usage:{inputTokens:5,outputTokens:2,cacheReadTokens:0,cacheWriteTokens:0,totalTokens:7}});
+    } else {
+      event(sessionId, 'assistant/message', {message:{content:[{type:'text',text:'stage 1 draft complete with no usage event'}]}});
+    }
+    event(sessionId, 'turn/end', {turn:current, reason:{kind:'completed'}});
+    return;
+  }
+
   if ((scenario === 'max_tokens_then_complete' && current === 1) || scenario === 'max_tokens_no_text' || scenario === 'preview_only' || scenario === 'storage_only') {
     event(sessionId, 'turn/start', {turn:current});
     if(scenario !== 'max_tokens_no_text') event(sessionId,'assistant/message',{message:{content:[{type:'text',text:scenario === 'preview_only' ? 'x'.repeat(9000) : scenario === 'storage_only' ? 'x'.repeat(200100) : 'Partial report, not finished'}]},usage:{inputTokens:30,outputTokens:scenario==='preview_only'?2200:1200}});

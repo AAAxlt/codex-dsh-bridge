@@ -1,6 +1,6 @@
 {
-  "date": "2026-10-21",
-  "sourceBaseline": "1.0.2",
+  "date": "2026-10-23",
+  "sourceBaseline": "1.0.4",
   "environment": {
     "platform": "win32",
     "arch": "x64",
@@ -15,36 +15,22 @@
       "command": "npm test",
       "exitCode": 0,
       "usesModelRequests": false,
-      "tests": 106,
-      "passed": 106,
-      "failed": 0,
+      "tests": 185,
+      "pass": 183,
+      "fail": 0,
       "cancelled": 0,
-      "skipped": 0
+      "skipped": 2,
+      "todo": 0,
+      "status": "partial",
+      "skipReason": "Two original Linux installation/baseline checks require separately installed runtimes and a local private registry."
     },
     {
-      "command": "node --test-isolation=none dist/test/installed-runtime.test.js",
-      "exitCode": 0,
-      "usesModelRequests": false,
-      "tests": 2,
-      "passed": 2,
-      "failed": 0,
-      "cancelled": 0,
-      "skipped": 0
-    },
-    {
-      "command": "node --test-isolation=none dist/test/installed-runtime.test.js",
-      "configuration": "DSH_BRIDGE_RUNTIME_ROOT points to an absent directory",
-      "exitCode": 1,
-      "expectedFailure": true,
-      "usesModelRequests": false,
-      "tests": 2,
-      "passed": 0,
-      "failed": 2,
-      "cancelled": 0,
-      "skipped": 0
+      "command": "Production source SHA-256 comparison against the 1.0.4 development candidate",
+      "matched": 10,
+      "mismatched": 0
     }
   ],
   "realModelAcceptanceRepeated": false,
-  "linuxCi": "Check the GitHub Actions run for the current commit; workflow configuration alone is not a passing result.",
-  "publicationChanges": "Preserved the two installed-bundle assertions as explicit integration tests; the normal unit suite uses temporary metadata. Production src/ is unchanged."
+  "linuxCi": "Inspect GitHub Actions for this commit; the workflow configuration itself is not evidence of passing checks.",
+  "publicationChanges": "Production src/ is unchanged. Preserved portable unit metadata samples and opt-in installed-runtime checks; pinned the unit provider; baseline refusal uses a temporary empty registry; added public metadata, documentation and stable LF source hashes."
 }

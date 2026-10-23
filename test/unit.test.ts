@@ -35,6 +35,7 @@ process.env['DSH_BRIDGE_RUNTIME_ROOT'] = UNIT_RUNTIME_ROOT;
 process.env['DSH_BRIDGE_CLI_ENTRY'] = path.join(launcherRoot, 'lib', 'bin.js');
 process.env['DSH_BRIDGE_ALLOWED_ROOTS'] = [TEST_ROOT, SECOND_ROOT].join(path.delimiter);
 process.env['DSH_BRIDGE_DESKTOP_PROFILE_PATCH'] = path.join(UNIT_RUNTIME_ROOT, 'no-desktop-profile.yml');
+process.env['DSH_BRIDGE_PROVIDER'] = 'opencode-go';
 
 const config = await import('../src/config.js');
 const evidence = await import('../src/evidence.js');
@@ -149,6 +150,15 @@ describe('read-only SDK method probe', () => {
     for (const method of ['session/cancel', 'session/resume']) {
       assert.ok(probe.methods.some((m) => m.method === method), `${method} must be probed`);
     }
+  });
+});
+
+describe('test route isolation', () => {
+  test('the default-route suite is pinned even when the parent process selects GOAT', () => {
+    assert.equal(config.PROVIDER_ID, 'opencode-go');
+    assert.equal(config.API_KEY_ENV, 'OPENCODE_GO_API_KEY');
+    assert.equal(config.MODEL_ID, 'deepseek-flash');
+    assert.equal(config.resolveReasoningEffort('off').sdkValue, 'none');
   });
 });
 

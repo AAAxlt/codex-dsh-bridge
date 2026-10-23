@@ -1,5 +1,5 @@
 /**
- * MCP server surface. Seven tools, `dsh_` prefixed.
+ * MCP server surface. Eight tools, `dsh_` prefixed.
  *
  * Spec section 4 lists six workflow items; item 3 ("dsh_get_task / dsh_wait_task") is
  * implemented as two separate tools, which is why there are seven.
@@ -16,6 +16,7 @@ import {
   SDK_METHODS, describeCredential, inspectDesktopRoute, probeSdkMethods, readRuntimeFacts,
 } from './config.js';
 import {BridgeError, TaskManager, previousRunDirs, type TaskState} from './tasks.js';
+import {COMPLETE_DELIVERY_DEFAULTS} from './delivery-preset.js';
 
 const STARTED_AT = new Date().toISOString();
 
@@ -107,6 +108,7 @@ function capabilitiesPayload(manager: TaskManager): unknown {
     credential: {...credential, valueNeverReturned: true},
     limits: {...LIMITS, maxConcurrentTasks: facts.maxConcurrentTasks},
     executionDefaults: {reasoningEffort: DEFAULT_REASONING_EFFORT, maxTokens: LIMITS.maxTokensDefault, budgetMs: LIMITS.stageBudgetMsDefault, explicitParametersOverrideDefaults: true},
+    deliveryPresets: {complete: {...COMPLETE_DELIVERY_DEFAULTS, requires: ['verificationCommand', 'protectedVerificationFiles']}, legacyUnchanged: true},
     workspaceBounds: {
       allowedRoots: facts.allowedRoots,
       dataRoot: facts.dataRoot,
@@ -133,12 +135,18 @@ function capabilitiesPayload(manager: TaskManager): unknown {
       },
       // This is the count of THIS MCP server's own tools, not the number of tools the model sees
       // at runtime. The runtime tool count depends on the selected preset and is not reported here.
-      mcpTools: 7,
+      mcpTools: 8,
       note: 'This runtime loads the SDK base rows, not desktop plugins; desktop plugins/skills are NOT inherited. Native skill tooling IS available to delegated tasks. PTC (run_code presentation) is only ever selected explicitly per submit, never automatically. mcpTools counts this MCP surface, NOT the runtime tool count.',
     },
     persistentRuns: previousRunDirs(),
     liveTasks: manager.listTasks(),
     modelReachability: 'NOT tested by this call: dsh_get_capabilities starts no model request, so service reachability is not claimed.',
+    observability: {
+      toolCounts: 'bridgeObserved.toolCallsTotal is the true count of tool invocation START events in that stage, independent of the retained-evidence cap. toolCallsRetained is how many observations were kept (max 60), toolCallsShown is what this reply displays, and toolCallsTaskTotal is the sum over all stages.',
+      usage: 'bridgeObserved.usage is the compatibility field: the LAST raw usage event only. bridgeObserved.usageAccounting.stage / .task are explicit sums; a resent event with the same message id replaces its earlier record, and task never double-counts continuation stages; a missing counter is null, not 0; totalTokens is only the SDK-reported total, while componentSumTokens is an explicitly non-total arithmetic sum of aliases. cost, if the SDK reports it, is an SDK usage-event value and never a provider invoice.',
+      verification: 'bridgeObserved.verification.status says whether the bridge actually ran its command, how many attempts, the exit code/error and the not-run reason. Only a normally completed turn is eligible; a cancel during execution is cancelled-during-run, not a pass. A passed command is not product acceptance.',
+      checkpoint: 'checkpoint.json and checkpoints/stage-N.json are written atomically on normal end, cancel, timeout, error, runtime exit and shutdown. They are machine-generated handoff evidence, not a model conclusion and not SDK cross-process resume.',
+    },
     reportingContract: {
       modelReport: 'the model\'s own text, verbatim',
       bridgeObserved: 'the SDK event stream, the workspace file diff and any command the bridge ran itself',
@@ -200,6 +208,14 @@ export function createServer(manager: TaskManager): McpServer {
           .describe('Per-response output budget, including model reasoning. Default 16384, maximum 32768. Explicit short budgets are preserved, not raised to a floor; values below 2048 get a warning. Output exhaustion is incomplete, not acceptance.'),
         budgetMs: z.number().int().min(1_000).max(86_400_000).optional()
           .describe('Per-stage wall-clock budget. Default 300000ms when omitted; explicit shorter/longer values are preserved. For high effort complex tasks consider 600000ms or more. Expiry stops this task SDK process and marks timed_out.'),
+        deliveryPreset: z.enum(['complete']).optional().describe('Complete delivery: high/32768/30min, 10min verification, up to 3 automatic repair stages. Explicit fields override defaults. Requires an independent command and protected acceptance files.'),
+        verificationTimeoutMs: z.number().int().min(1_000).max(86_400_000).optional(),
+        protectedVerificationFiles: z.array(z.string().min(1).max(4096)).max(256).optional().describe('Existing acceptance files, including checker dependencies and fixtures. Bridge pins real paths and SHA-256 before the model starts and checks before/after verification.'),
+        autoRepair: z.object({
+          enabled: z.boolean().optional(), maxAttempts: z.number().int().min(1).max(10).optional(),
+          noProgressLimit: z.number().int().min(1).max(10).optional(),
+          totalBudgetMs: z.number().int().min(1000).max(86_400_000).optional(),
+        }).optional().describe('Opt-in same-session repair on failed host verification. Requires protected acceptance files. Stops on success, unchanged failures, limits, permission errors or cancellation.'),
       }),
       annotations: {...WRITES_MAYBE, title: 'Delegate one stage of work to DSH (starts a model request)'},
     },
@@ -216,6 +232,8 @@ export function createServer(manager: TaskManager): McpServer {
           executionProfile: args.executionProfile,
           maxTokens: args.maxTokens,
           budgetMs: args.budgetMs,
+          deliveryPreset: args.deliveryPreset, verificationTimeoutMs: args.verificationTimeoutMs,
+          protectedVerificationFiles: args.protectedVerificationFiles, autoRepair: args.autoRepair,
         });
         const stage = record.stages[0]!;
         return reply(
@@ -231,6 +249,7 @@ export function createServer(manager: TaskManager): McpServer {
           ].join('\n'),
           {
             ok: true, taskId: record.taskId, sessionId: record.sessionId, state: record.state,
+            deliveryPreset: record.deliveryPreset, verificationTimeoutMs: record.verificationTimeoutMs, autoRepair: record.autoRepair,
             stage: stage.index, messageId: stage.messageId,
             workspace: record.workspace, taskDir: record.taskDir, dshHome: record.homeDir,
             runtimePid: record.runtimePid, serverInfo: record.serverInfo,
@@ -307,7 +326,7 @@ export function createServer(manager: TaskManager): McpServer {
     {
       title: 'Read one stage result: model report and bridge-observed evidence (read-only)',
       description:
-        'Returns the latest or a named stage. Model report and bridge evidence are separate. modelReport.previewTruncated means only the display preview was shortened; upstreamTruncated means the model hit its output limit and the stage is incomplete. Full recorded text stays on disk; a partial upstream response cannot be recovered from that file. Model-internal reasoning is excluded.',
+        'Returns the latest or a named stage. Model report and bridge evidence are separate. modelReport.previewTruncated means only the display preview was shortened; upstreamTruncated means the model hit its output limit and the stage is incomplete. Full recorded text stays on disk. bridgeObserved.toolCallsTotal is the TRUE tool-call total (not the retained 60); usageAccounting separates latest, stage sum and task sum (missing counters are null, never 0); verification.status states whether the bridge command ran, its attempts/exit code and any not-run reason; deliverySummary gives a compact deterministic acceptance basis and evidence paths. Model-internal reasoning is excluded.',
       inputSchema: z.object({
         taskId: z.string().min(1),
         stage: z.number().int().min(1).optional().describe('Stage number. Defaults to the latest stage.'),
@@ -320,19 +339,35 @@ export function createServer(manager: TaskManager): McpServer {
         const payload = manager.result(taskId, stage, verbose ?? false) as {
           stage: number; stageState: TaskState; taskState: TaskState;
           modelReport: {chars: number; truncated: boolean; previewTruncated: boolean; upstreamTruncated: boolean; storageTruncated: boolean; fullReportPath: string | null};
-          bridgeObserved: {output:{status:string;limitReached:boolean}; toolCallsTotal: number; toolErrorCount: number; verificationCommand: {exitCode: number | null} | null};
+          bridgeObserved: {
+            output: {status: string; limitReached: boolean};
+            toolCallsTotal: number; toolCallsRetained: number; toolCallsShown: number; toolCallsDropped: number; toolCallsTaskTotal: number;
+            toolErrorCount: number;
+            verification: {status: string; attempts: number; lastRun: {exitCode: number | null} | null; notRunReason: string | null};
+            usageAccounting: {stage: {records: number}; task: {records: number; stagesWithUsage: number; stagesTotal: number}};
+          };
+          deliverySummary: {productAcceptance: string; evidence: {checkpoint: string}};
           configurationWarnings: string[];
           unresolved: string[];
         };
-        const v = payload.bridgeObserved.verificationCommand;
+        const v = payload.bridgeObserved.verification;
+        const usage = payload.bridgeObserved.usageAccounting;
         return reply(
           [
             `taskId=${taskId} stage=${payload.stage} stageState=${payload.stageState} taskState=${payload.taskState}`,
             `generation=${payload.bridgeObserved.output.status}; upstreamTruncated=${payload.modelReport.upstreamTruncated}; previewTruncated=${payload.modelReport.previewTruncated}; storageTruncated=${payload.modelReport.storageTruncated}`,
             `model report: ${payload.modelReport.chars} recorded chars (truncated=${payload.modelReport.truncated})${payload.modelReport.fullReportPath ? ` recorded text: ${payload.modelReport.fullReportPath}` : ''}`,
             ...payload.configurationWarnings.map((warning) => `WARNING: ${warning}`),
-            `bridge observed: ${payload.bridgeObserved.toolCallsTotal} tool call(s), ${payload.bridgeObserved.toolErrorCount} flagged isError`,
-            v ? `bridge ran the verification command itself: exitCode=${v.exitCode}` : 'no verification command was supplied to the bridge',
+            `bridge observed: ${payload.bridgeObserved.toolCallsTotal} tool call(s) total, ${payload.bridgeObserved.toolCallsRetained} retained, ${payload.bridgeObserved.toolCallsShown} shown, ${payload.bridgeObserved.toolErrorCount} flagged isError; task total ${payload.bridgeObserved.toolCallsTaskTotal}`,
+            v.status === 'cancelled-during-run'
+              ? `bridge verification ran but the task was cancelled during it (exitCode=${String(v.lastRun?.exitCode ?? null)}); not acceptance`
+              : v.status === 'passed' || v.status === 'failed' || v.status === 'timed-out' || v.status === 'errored'
+                ? `bridge verification: ${v.status} (attempts=${v.attempts}, exitCode=${String(v.lastRun?.exitCode ?? null)})`
+                : v.status === 'not-configured'
+                  ? 'no verification command was supplied to the bridge'
+                  : `bridge verification did NOT run (${v.status}): ${v.notRunReason ?? 'reason not recorded'}`,
+            `usage: stage ${usage.stage.records} event(s), task ${usage.task.records} event(s) across ${usage.task.stagesWithUsage}/${usage.task.stagesTotal} stage(s); see usageAccounting for exact fields`,
+            `delivery: productAcceptance=${payload.deliverySummary.productAcceptance}; checkpoint=${payload.deliverySummary.evidence.checkpoint}`,
             `${payload.unresolved.length} unresolved item(s)`,
           ].join('\n'),
           payload,
@@ -409,6 +444,16 @@ export function createServer(manager: TaskManager): McpServer {
       }
     },
   );
+
+  server.registerTool('dsh_export_delivery', {
+    title: 'Export the recorded final delivery bundle',
+    description: 'Copies the final host-generated delivery index, selected source snapshot and evidence to a new directory inside allowed workspace roots. Validates recorded hashes; never reruns acceptance or starts a model request.',
+    inputSchema: z.object({taskId: z.string().min(1), destination: z.string().min(1).max(4096)}),
+    annotations: {readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false},
+  }, async ({taskId, destination}) => {
+    try { const payload = manager.exportDelivery(taskId, destination); return reply(`delivery exported: ${payload.indexJson}`, {ok: true, ...payload}); }
+    catch (error) { return failure(error); }
+  });
 
   return server;
 }

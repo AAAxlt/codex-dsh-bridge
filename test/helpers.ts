@@ -43,6 +43,9 @@ export function cleanupDir(dir: string): void {
 export function scriptedBridgeEnv(overrides: Record<string, string> = {}): Record<string, string> {
   return {
     ...(process.env as Record<string, string>),
+    // Test isolation: the default route is asserted by several suites, so the ambient parent
+    // environment must not change it. A test that needs GOAT passes it in `overrides` explicitly.
+    DSH_BRIDGE_PROVIDER: 'opencode-go',
     DSH_BRIDGE_CLI_ENTRY: FAKE_RUNTIME,
     DSH_BRIDGE_DATA_ROOT: TEST_DATA_ROOT,
     DSH_BRIDGE_ALLOWED_ROOTS: [TEST_ROOT, SECOND_ROOT].join(path.delimiter),

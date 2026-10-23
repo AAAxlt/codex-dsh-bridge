@@ -2,7 +2,9 @@
 
 A local MCP bridge that lets Codex delegate bounded development tasks to a separate DSH agent harness, inspect the evidence, and explicitly decide whether to continue.
 
-**Development status:** work in progress. The current source baseline is **1.0.2**. This is an independent community project, with no claim of affiliation with OpenAI or DeepSeek. Public adoption and cross-model coverage have not been established.
+**Development status:** work in progress. The current source baseline is **1.0.4**. This is an independent community project, with no claim of affiliation with OpenAI or DeepSeek. Public adoption and cross-model coverage have not been established.
+
+Version 1.0.4 adds optional same-session repair, a complete-delivery preset, protected verifier files, delivery exports, and task metrics. See the [release notes](docs/RELEASE-1.0.4.md).
 
 [中文说明](README.zh-CN.md) · [Calling conventions](USAGE.md) · [Validation and limitations](docs/VALIDATION.md)
 
@@ -88,6 +90,10 @@ The guard refuses to overwrite an existing baseline and blocks explicit profiles
 Omitted work parameters select `reasoningEffort=medium`, `maxTokens=16384`, and a **300000 ms per-stage budget**. Explicit shorter diagnostic budgets and `high` effort are preserved. On the GOAT route, `off`/`none` is mapped to `low` with a warning; there is no silent provider switch.
 
 `verificationCommand` is an optional argv array executed by the bridge in the workspace. Its exit code is recorded independently of the model report. Long MCP waits also require a client request timeout above the floor reported by capabilities.
+
+For a complete implementation and repair loop, set `deliveryPreset: "complete"` and provide both `verificationCommand` and non-empty `protectedVerificationFiles`. This selects high reasoning, 32768 tokens, a 30-minute stage budget, and up to three extra repair stages. Explicit overrides remain authoritative. Auto-repair is otherwise off by default. Review [USAGE.md](USAGE.md) before enabling it; verifier dependencies must be declared by the caller.
+
+Use `dsh_export_delivery` to copy a settled task's recorded source snapshots, evidence, and indexes to a new allowed directory. Export validates hashes but does not repeat acceptance. Runtime-dependent baseline checks remain separate from portable scripted checks; skipped checks are not a full runtime pass.
 
 ## Boundaries and known gaps
 

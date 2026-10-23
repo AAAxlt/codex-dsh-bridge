@@ -2,7 +2,9 @@
 
 一个本地 MCP 桥接项目：由 Codex 统一规划和审查，将有明确边界的开发任务交给独立 DSH 运行时执行。
 
-**项目仍在开发中。** 当前公开源码基线为 **1.0.2**，是独立社区项目，不代表 OpenAI 或 DeepSeek 官方。尚未建立公开用户规模，也没有宣称支持任意模型或任意运行环境。
+**项目仍在开发中。** 当前公开源码基线为 **1.0.4**，是独立社区项目，不代表 OpenAI 或 DeepSeek 官方。尚未建立公开用户规模，也没有宣称支持任意模型或任意运行环境。
+
+1.0.4 新增可选的同会话自动回修、完整交付预设、验收文件哈希保护、交付包导出和任务度量，详见[版本说明](docs/RELEASE-1.0.4.md)。
 
 [English / 安装配置](README.md) · [调用约定](USAGE.md) · [验证记录与边界](docs/VALIDATION.md)
 
@@ -39,6 +41,10 @@ npm test
 MCP 启动命令为 `node <本仓库绝对路径>/dist/src/main.js`。运行时位置、允许的工作区和私有任务目录分别通过 `DSH_BRIDGE_RUNTIME_ROOT`、`DSH_BRIDGE_ALLOWED_ROOTS`、`DSH_BRIDGE_DATA_ROOT` 设置。完整变量表及可选执行档位的本地基线生成方法见 [英文说明](README.md)。
 
 正式任务省略工作参数时，默认使用 medium、16384 token 上限、每阶段 300 秒。显式短预算和 high 参数会保留。工具返回的 `effectiveParameters` 才是实际执行值。
+
+完整任务可指定 `deliveryPreset:"complete"`，同时提供独立验收命令与非空 `protectedVerificationFiles`：预设为 high、32768 token、每阶段 30 分钟、宿主验收 10 分钟，最多额外回修 3 次，全程预算 60 分钟；显式参数优先。自动回修默认关闭，启用前应完整声明验收脚本、断言、fixture 和依赖。
+
+任务结束后可用 `dsh_export_delivery` 导出记录的源码快照、脱敏证据、索引和哈希。导出不会重新验收，也不保证包含整个仓库。跳过运行时检查只能算部分验证，不能表述为完整通过。
 
 ## 当前限制
 

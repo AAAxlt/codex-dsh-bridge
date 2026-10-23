@@ -1,0 +1,13 @@
+{
+  "version": "1.0.4",
+  "scope": "Public source publication; not real-model acceptance",
+  "finalTests": {
+    "total": 185
+  },
+  "sourceHashes": {
+    "final": {
+      "manifestSha256": "21fb4b532f3926bca6a6921b30baf175b254c9671d3cd524379cfa05a6e85ea8"
+    }
+  },
+  "runtimeBaselines": "Not bundled. Capture and register the reviewed installation locally; see docs/VALIDATION.md."
+}
