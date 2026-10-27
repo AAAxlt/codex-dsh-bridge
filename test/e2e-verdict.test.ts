@@ -27,7 +27,12 @@ const SELF_CHECK_RUN_ID = `self-check-${process.pid}`;
 const {buildSummary, buildVerdict} = await import(pathToFileURL(LIB).href);
 
 const E2E_ROOT = process.env['DSH_BRIDGE_E2E_ROOT'] ??
-  (process.platform === 'win32' ? 'D:\\AGENTS\\temp' : path.join(process.env['HOME'] ?? '/tmp', 'projects', '_e2e'));
+  (process.platform === 'win32'
+    ? 'D:\\AGENTS\\temp'
+    : path.join(REPO_ROOT, 'evidence', 'e2e-root'));
+// The driver is a separate process: give it the same writable root this test asserts against.
+// This is a test-environment adaptation, not a weaker assertion.
+process.env['DSH_BRIDGE_E2E_ROOT'] = E2E_ROOT;
 const SELF_CHECK_EVIDENCE = path.join(E2E_ROOT, 'codex-dsh-bridge-e2e', `${SELF_CHECK_RUN_ID}-evidence`);
 
 after(() => {

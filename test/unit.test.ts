@@ -4,7 +4,7 @@
  * Real installation assertions live in installed-runtime.test.ts and are opt-in.
  */
 import assert from 'node:assert/strict';
-import {mkdirSync, mkdtempSync, realpathSync, rmSync, unlinkSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -273,7 +273,70 @@ describe('workspace snapshot diff', () => {
     assert.deepEqual(diff.added.map((f) => path.basename(f)), ['new.txt']);
     assert.deepEqual(diff.modified.map((f) => path.basename(f)), ['change.txt']);
     assert.deepEqual(diff.removed.map((f) => path.basename(f)), ['gone.txt']);
+    assert.equal(diff.removalDetection, 'complete');
     assert.ok(!diff.added.concat(diff.modified, diff.removed).some((f) => f.includes('keep.txt')));
+  });
+
+  test('a large unhashed file does not stop enumeration of queued directories', () => {
+    const root = path.join(TEST_ROOT, 'snapshot-large-queued');
+    rmSync(root, {recursive: true, force: true});
+    mkdirSync(path.join(root, 'a'), {recursive: true});
+    writeFileSync(path.join(root, 'a', 'keep.txt'), 'keep');
+    const before = evidence.snapshotWorkspace(root);
+    writeFileSync(path.join(root, 'large.bin'), Buffer.alloc(evidence.SNAPSHOT_LIMITS.maxHashFileBytes + 1, 65));
+    const after = evidence.snapshotWorkspace(root);
+    assert.ok(after.files['a/keep.txt'], 'the queued directory must still be enumerated');
+    assert.equal(after.files['large.bin']?.sha256, null);
+    assert.equal(after.enumerationComplete, true);
+    assert.equal(after.hashComplete, false);
+    assert.equal(after.truncated, true);
+    const diff = evidence.diffSnapshots(before, after);
+    assert.deepEqual(diff.removed, []);
+    assert.equal(diff.removalDetection, 'unknown');
+  });
+
+  test('a file-count-capped after snapshot never invents removals', () => {
+    const beforeRoot = path.join(TEST_ROOT, 'snapshot-cap-before');
+    const afterRoot = path.join(TEST_ROOT, 'snapshot-cap-after');
+    rmSync(beforeRoot, {recursive: true, force: true});
+    rmSync(afterRoot, {recursive: true, force: true});
+    mkdirSync(beforeRoot, {recursive: true});
+    mkdirSync(afterRoot, {recursive: true});
+    writeFileSync(path.join(beforeRoot, 'only-before.txt'), 'x');
+    const before = evidence.snapshotWorkspace(beforeRoot);
+    for (let n = 0; n <= evidence.SNAPSHOT_LIMITS.maxFiles; n += 1) {
+      writeFileSync(path.join(afterRoot, `f${String(n).padStart(5, '0')}.txt`), 'x');
+    }
+    const after = evidence.snapshotWorkspace(afterRoot);
+    assert.equal(after.enumerationComplete, false);
+    assert.equal(after.truncated, true);
+    assert.equal(after.fileCount, evidence.SNAPSHOT_LIMITS.maxFiles);
+    const diff = evidence.diffSnapshots(before, after);
+    assert.deepEqual(diff.removed, []);
+    assert.equal(diff.removalDetection, 'unknown');
+  });
+
+  test('an errored or incomplete after snapshot suppresses removal inference', () => {
+    const root = path.join(TEST_ROOT, 'snapshot-incomplete');
+    rmSync(root, {recursive: true, force: true});
+    mkdirSync(root, {recursive: true});
+    writeFileSync(path.join(root, 'keep.txt'), 'same');
+    const before = evidence.snapshotWorkspace(root);
+    const after = evidence.snapshotWorkspace(root);
+    const incomplete = {
+      ...after,
+      files: {},
+      fileCount: 0,
+      truncated: true,
+      enumerationComplete: false,
+      hashComplete: false,
+      errors: [`${path.join(root, 'a')}: EACCES`],
+    };
+    const diff = evidence.diffSnapshots(before, incomplete);
+    assert.deepEqual(diff.removed, [], 'unseen existing files must never be reported as deleted');
+    assert.equal(diff.removalDetection, 'unknown');
+    const errorOnly = {...after, files: {}, fileCount: 0, errors: [`${path.join(root, 'a')}: EACCES`]};
+    assert.equal(evidence.diffSnapshots(before, errorOnly).removalDetection, 'unknown');
   });
 });
 
@@ -304,6 +367,16 @@ describe('stage prompts', () => {
     assert.ok(next.includes('PRIOR-REPORT-MARKER'));
     assert.ok(next.includes('SAME session'), 'the continuation must tell the model to stay in the same session');
   });
+});
+
+test('runtime, package-lock and API version identity agree', () => {
+  const root = fileURLToPath(new URL('../../', import.meta.url));
+  const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as {version: string};
+  const lock = JSON.parse(readFileSync(path.join(root, 'package-lock.json'), 'utf8')) as {version: string; packages: Record<string, {version?: string}>};
+  assert.equal(config.BRIDGE_VERSION, pkg.version, 'the runtime BRIDGE_VERSION must match package.json');
+  assert.equal(lock.version, pkg.version, 'package-lock top-level version must match package.json');
+  assert.equal(lock.packages['']?.version, pkg.version, 'package-lock root package version must match package.json');
+  assert.equal(pkg.version, '1.0.8');
 });
 
 after(() => {

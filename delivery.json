@@ -1,13 +1,13 @@
 {
-  "version": "1.0.4",
-  "scope": "Public source publication; not real-model acceptance",
+  "version": "1.0.8",
+  "scope": "Public source publication; autoContinue, structured external receipts and automation metrics are scripted-tested, not real-model acceptance",
   "finalTests": {
-    "total": 185
+    "total": 293
   },
   "sourceHashes": {
     "final": {
-      "manifestSha256": "21fb4b532f3926bca6a6921b30baf175b254c9671d3cd524379cfa05a6e85ea8"
+      "manifestSha256": "b3a695e0a4bdfa46971f92b476ee2bf1fdc81a06820ff4ae96f4b4243ffb90af"
     }
   },
-  "runtimeBaselines": "Not bundled. Capture and register the reviewed installation locally; see docs/VALIDATION.md."
+  "runtimeBaselines": "Not bundled. Local ignored runtime baselines were recaptured for both reviewed Linux roots after the final bridge implementation and compiled-asset edits. Existing SDK runtime package files and versions are byte-identical; only candidate-local bridge dist asset hashes changed. maintenance/guard.mjs changed only by additive ASSETS coverage for dist/src/history.js; its guard algorithm and package list are unchanged."
 }

@@ -18,6 +18,21 @@ export interface AutoRepairPolicy {
   totalBudgetMs: number;
 }
 
+/**
+ * Bounded same-live-session continuation after real provider output exhaustion. It is a
+ * separate policy from automatic repair: an output cut-off is not a failed acceptance check,
+ * and a repair decision must never be re-labelled as a continuation (or vice versa).
+ */
+export interface AutoContinuePolicy {
+  enabled: boolean;
+  /** Maximum additional stages after the initial stage. */
+  maxAttempts: number;
+  /** Stop after this many consecutive exhausted stages with no source progress. */
+  noProgressLimit: number;
+  /** Whole continuation-cycle budget, including the initial generation. */
+  totalBudgetMs: number;
+}
+
 export interface DeliveryPresetInput {
   deliveryPreset?: DeliveryPreset | undefined;
   reasoningEffort?: ReasoningEffort | undefined;
@@ -27,6 +42,7 @@ export interface DeliveryPresetInput {
   verificationTimeoutMs?: number | undefined;
   protectedVerificationFiles?: readonly string[] | undefined;
   autoRepair?: Partial<AutoRepairPolicy> | undefined;
+  autoContinue?: Partial<AutoContinuePolicy> | undefined;
 }
 
 export interface ResolvedDeliverySettings {
@@ -38,6 +54,12 @@ export interface ResolvedDeliverySettings {
   verificationTimeoutMs: number;
   protectedVerificationFiles: string[];
   autoRepair: AutoRepairPolicy;
+  /**
+   * Resolved separately for compatibility: older callers deep-compare this object and the
+   * 1.0.7 shape must keep resolving byte-for-byte. Submit/recover call
+   * `resolveAutoContinuePolicy` alongside this function.
+   */
+  autoContinue?: AutoContinuePolicy;
 }
 
 export const COMPLETE_DELIVERY_REQUIREMENTS = [
@@ -54,6 +76,7 @@ export const COMPLETE_DELIVERY_DEFAULTS = Object.freeze({
   budgetMs: 1_800_000,
   verificationTimeoutMs: 600_000,
   autoRepair: Object.freeze({enabled: true, maxAttempts: 3, noProgressLimit: 2, totalBudgetMs: 3_600_000}),
+  autoContinue: Object.freeze({enabled: true, maxAttempts: 2, noProgressLimit: 2, totalBudgetMs: 3_600_000}),
 });
 
 export class DeliveryPresetError extends Error {
@@ -90,6 +113,35 @@ function protectedFiles(value: unknown): string[] {
     throw new DeliveryPresetError('protectedVerificationFiles must contain at most 64 non-empty file paths (maximum 4096 characters each)');
   }
   return [...value] as string[];
+}
+
+/**
+ * Resolve the bounded output-exhaustion continuation policy. Omission is disabled for legacy
+ * compatibility; the complete preset enables maxAttempts=2/noProgressLimit=2/one-hour budget.
+ * Explicit fields always win, and every field is validated before a task directory is allocated.
+ */
+export function resolveAutoContinuePolicy(
+  raw: unknown,
+  options: {complete?: boolean; defaults?: AutoContinuePolicy} = {},
+): AutoContinuePolicy {
+  if (raw !== undefined && raw !== null && (typeof raw !== 'object' || Array.isArray(raw))) {
+    throw new DeliveryPresetError('autoContinue must be an object');
+  }
+  const value = (raw ?? {}) as Partial<AutoContinuePolicy>;
+  const defaults = options.defaults ?? {
+    enabled: options.complete === true,
+    maxAttempts: 2,
+    noProgressLimit: 2,
+    totalBudgetMs: 3_600_000,
+  };
+  const enabled = value.enabled === undefined ? defaults.enabled : value.enabled;
+  if (typeof enabled !== 'boolean') throw new DeliveryPresetError('autoContinue.enabled must be a boolean');
+  return {
+    enabled,
+    maxAttempts: integer(value.maxAttempts, defaults.maxAttempts, 1, 10, 'autoContinue.maxAttempts'),
+    noProgressLimit: integer(value.noProgressLimit, defaults.noProgressLimit, 1, 10, 'autoContinue.noProgressLimit'),
+    totalBudgetMs: integer(value.totalBudgetMs, defaults.totalBudgetMs, 1_000, 86_400_000, 'autoContinue.totalBudgetMs'),
+  };
 }
 
 /**

@@ -1,10 +1,13 @@
 # Bridge 1.0.3 delivery-observability contract
 
-Publication note (1.0.4): the observation contract below remains applicable. Runtime paths,
+Publication note (1.0.6): the observation contract below remains applicable. Runtime paths,
 registry entries, and historical results describe the original development installation, not files
 bundled with this public checkout. Capture your own baseline and register it locally before using
-the independent delivery checker. Current publication checks are in VALIDATION.md; new delivery
-and repair behavior is described in RELEASE-1.0.4.md and ../USAGE.md.
+the independent delivery checker. Current publication checks are in VALIDATION.md. The 1.0.6 checkpoint
+recovery tools, 1.0.5 read-only history surface, historical export, prompt-boundary wording and
+repair-budget scope are described in RELEASE-1.0.6.md, RELEASE-1.0.5.md and ../USAGE.md. Recovery is
+new-session checkpoint recovery; docs/SDK-RESUME-ASSESSMENT.md records why native conversation resume
+is not claimed.
 
 This candidate changes only the Bridge's own observation, verification and handoff surfaces. The
 provider/model route, credential handling, workspace boundary, truncation semantics, cancellation

@@ -7,7 +7,7 @@
  *
  * Behaviour is chosen by FAKE_SCENARIO. This file is deliberately NOT part of dist/src.
  */
-import {appendFileSync, writeFileSync} from 'node:fs';
+import {appendFileSync, existsSync, writeFileSync} from 'node:fs';
 import {createInterface} from 'node:readline';
 
 const scenario = process.env.FAKE_SCENARIO ?? 'success';
@@ -111,11 +111,84 @@ function runTurn() {
     return;
   }
 
+  if (scenario === 'log_only_exhaustion') {
+    event(sessionId, 'turn/start', {turn:current});
+    // The declared source stays byte-identical; only an explicitly declared log changes.
+    if (!existsSync(`${workspace}/work.txt`)) writeFileSync(`${workspace}/work.txt`, 'stable source\n', 'utf8');
+    appendFileSync(`${workspace}/activity.log`, `turn ${current} log-only change\n`, 'utf8');
+    event(sessionId, 'assistant/message', {message:{content:[{type:'text',text:`logs only on turn ${current}`}]},usage:{inputTokens:10,outputTokens:4}});
+    event(sessionId, 'turn/end', {turn:current, reason:{kind:'max-tokens'}});
+    return;
+  }
+
+  if (scenario === 'max_tokens_no_write') {
+    event(sessionId, 'turn/start', {turn:current});
+    event(sessionId, 'assistant/message', {message:{content:[{type:'text',text:'No source edit was made before exhaustion.'}]},usage:{inputTokens:30,outputTokens:20}});
+    event(sessionId, 'turn/end', {turn:current, reason:{kind:'max-tokens'}});
+    return;
+  }
+
+  if (scenario === 'max_tokens_always_progress') {
+    event(sessionId, 'turn/start', {turn:current});
+    writeFileSync(`${workspace}/progress-${current}.txt`, `unique content for turn ${current}\n`, 'utf8');
+    event(sessionId, 'assistant/message', {message:{content:[{type:'text',text:`partial progress turn ${current}`}]},usage:{inputTokens:30,outputTokens:20}});
+    event(sessionId, 'turn/end', {turn:current, reason:{kind:'max-tokens'}});
+    return;
+  }
+
+  if (scenario === 'max_tokens_then_slow') {
+    event(sessionId, 'turn/start', {turn:current});
+    if (current === 1) {
+      writeFileSync(`${workspace}/partial.txt`, 'partial before exhaustion\n', 'utf8');
+      event(sessionId, 'assistant/message', {message:{content:[{type:'text',text:'Partial report, not finished'}]},usage:{inputTokens:30,outputTokens:20}});
+      event(sessionId, 'turn/end', {turn:current, reason:{kind:'max-tokens'}});
+      return;
+    }
+    later(5_000, () => {
+      writeFileSync(`${workspace}/slow-continuation.txt`, 'continuation work\n', 'utf8');
+      event(sessionId, 'assistant/message', {message:{content:[{type:'text',text:'slow continuation finished'}]},usage:{inputTokens:10,outputTokens:5}});
+      event(sessionId, 'turn/end', {turn:current, reason:{kind:'completed'}});
+    });
+    return;
+  }
+
+  if (scenario === 'complete_then_slow') {
+    event(sessionId, 'turn/start', {turn:current});
+    if (current === 1) {
+      writeFileSync(`${workspace}/notes.md`, '# notes\n\nwritten by stage 1\n', 'utf8');
+      event(sessionId, 'assistant/message', {message:{content:[{type:'text',text:'stage 1 complete'}]},usage:{inputTokens:10,outputTokens:5}});
+      event(sessionId, 'turn/end', {turn:current, reason:{kind:'completed'}});
+      return;
+    }
+    later(5_000, () => {
+      writeFileSync(`${workspace}/notes.md`, '# notes\n\nwritten by stage 2\n', 'utf8');
+      event(sessionId, 'assistant/message', {message:{content:[{type:'text',text:'stage 2 complete'}]},usage:{inputTokens:10,outputTokens:5}});
+      event(sessionId, 'turn/end', {turn:current, reason:{kind:'completed'}});
+    });
+    return;
+  }
+
   if ((scenario === 'max_tokens_then_complete' && current === 1) || scenario === 'max_tokens_no_text' || scenario === 'preview_only' || scenario === 'storage_only') {
     event(sessionId, 'turn/start', {turn:current});
     if(scenario !== 'max_tokens_no_text') event(sessionId,'assistant/message',{message:{content:[{type:'text',text:scenario === 'preview_only' ? 'x'.repeat(9000) : scenario === 'storage_only' ? 'x'.repeat(200100) : 'Partial report, not finished'}]},usage:{inputTokens:30,outputTokens:scenario==='preview_only'?2200:1200}});
     if(scenario !== 'preview_only') writeFileSync(`${workspace}/partial.txt`,'preserve this work','utf8');
     event(sessionId,'turn/end',{turn:current,reason:{kind:['preview_only','storage_only'].includes(scenario)?'completed':'max-tokens'}});
+    return;
+  }
+
+  if (scenario === 'two_phase') {
+    event(sessionId, 'turn/start', {turn: current});
+    const firstPhase = !existsSync(`${workspace}/phase-1.txt`);
+    const file = firstPhase ? 'phase-1.txt' : 'phase-2.txt';
+    const text = firstPhase ? 'PHASE_ONE_DONE\n' : 'PHASE_TWO_DONE\n';
+    writeFileSync(`${workspace}/${file}`, text, 'utf8');
+    event(sessionId, 'assistant/message', {
+      message: {content: [{type: 'text', text: `scripted two-phase stage ${current}: wrote ${file}`}]},
+      usage: {inputTokens: 40, outputTokens: 8},
+    });
+    event(sessionId, 'tool/call', {callId: `phase-${current}`, name: 'write', turn: current, step: 1, arguments: JSON.stringify({path: file})});
+    event(sessionId, 'tool/result', {toolCallId: `phase-${current}`, message: {content: [{type: 'text', text: `wrote ${file}`}], isError: false}});
+    event(sessionId, 'turn/end', {turn: current, reason: {kind: 'completed'}});
     return;
   }
 
@@ -144,6 +217,15 @@ function runTurn() {
   if (scenario === 'slow') {
     event(sessionId, 'turn/start', {turn: current});
     later(60_000, () => event(sessionId, 'turn/end', {turn: current, reason: {kind: 'completed'}}));
+    return;
+  }
+
+  if (scenario === 'delayed_complete') {
+    // A deterministic window in which a test can enable a later-persistence fault before the
+    // turn ends. This is scripted test behaviour, not a production seam.
+    event(sessionId, 'turn/start', {turn: current});
+    event(sessionId, 'assistant/message', {message: {content: [{type: 'text', text: 'delayed stage complete'}]}, usage: {inputTokens: 3, outputTokens: 2}});
+    later(600, () => event(sessionId, 'turn/end', {turn: current, reason: {kind: 'completed'}}));
     return;
   }
 

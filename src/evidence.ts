@@ -94,7 +94,12 @@ export interface WorkspaceSnapshot {
   takenAt: string;
   files: Record<string, FileEntry>;
   fileCount: number;
+  /** True when either the file enumeration or its content hashing is incomplete. */
   truncated: boolean;
+  /** False when the file-count cap, a readdir failure or a stat failure left entries unseen. */
+  enumerationComplete: boolean;
+  /** False when a large file, hash-budget exhaustion or a hash read error left a null digest. */
+  hashComplete: boolean;
   hashedBytes: number;
   errors: string[];
 }
@@ -102,16 +107,20 @@ export interface WorkspaceSnapshot {
 export function snapshotWorkspace(root: string): WorkspaceSnapshot {
   const files: Record<string, FileEntry> = {};
   const errors: string[] = [];
-  let truncated = false;
+  let enumerationComplete = true;
+  let hashComplete = true;
+  let fileCount = 0;
   let hashedBytes = 0;
+  let stopEnumeration = false;
   const stack: string[] = [root];
-  while (stack.length > 0) {
+  while (stack.length > 0 && !stopEnumeration) {
     const dir = stack.pop()!;
     let entries;
     try {
       entries = readdirSync(dir, {withFileTypes: true});
     } catch (error) {
       errors.push(`${dir}: ${(error as Error).message}`);
+      enumerationComplete = false;
       continue;
     }
     for (const entry of entries) {
@@ -123,12 +132,17 @@ export function snapshotWorkspace(root: string): WorkspaceSnapshot {
         continue;
       }
       if (!entry.isFile()) continue;
-      if (Object.keys(files).length >= SNAPSHOT_LIMITS.maxFiles) { truncated = true; break; }
+      if (fileCount >= SNAPSHOT_LIMITS.maxFiles) {
+        enumerationComplete = false;
+        stopEnumeration = true;
+        break;
+      }
       let stat;
       try {
         stat = statSync(full);
       } catch (error) {
         errors.push(`${rel}: ${(error as Error).message}`);
+        enumerationComplete = false;
         continue;
       }
       let sha256: string | null = null;
@@ -136,17 +150,23 @@ export function snapshotWorkspace(root: string): WorkspaceSnapshot {
         try {
           sha256 = createHash('sha256').update(readFileSync(full)).digest('hex');
           hashedBytes += stat.size;
-        } catch { sha256 = null; }
+        } catch (error) {
+          // Keep the file's metadata and an honest null digest; continue enumerating.
+          hashComplete = false;
+          errors.push(`${rel}: hashing failed: ${(error as Error).message}`);
+        }
       } else {
-        truncated = true;
+        // Large file or exhausted hash budget: keep metadata, continue the full enumeration.
+        hashComplete = false;
       }
       files[rel] = {size: stat.size, mtimeMs: Math.round(stat.mtimeMs), sha256};
+      fileCount += 1;
     }
-    if (truncated) break;
   }
   return {
     root, takenAt: new Date().toISOString(), files,
-    fileCount: Object.keys(files).length, truncated, hashedBytes, errors,
+    fileCount, truncated: !enumerationComplete || !hashComplete,
+    enumerationComplete, hashComplete, hashedBytes, errors,
   };
 }
 
@@ -157,6 +177,12 @@ export interface FileChanges {
   unchangedCount: number;
   before: WorkspaceSnapshot;
   after: WorkspaceSnapshot;
+  /**
+   * `complete` means the after snapshot is complete (full enumeration and hashing), so an absent
+   * key is a real deletion. `unknown` means enumeration/hashing was incomplete or errored, so
+   * missing keys are never inferred as deleted.
+   */
+  removalDetection: 'complete' | 'unknown';
 }
 
 export function diffSnapshots(before: WorkspaceSnapshot, after: WorkspaceSnapshot): FileChanges {
@@ -175,7 +201,12 @@ export function diffSnapshots(before: WorkspaceSnapshot, after: WorkspaceSnapsho
       unchangedCount++;
     }
   }
-  for (const rel of Object.keys(before.files)) if (!after.files[rel]) removed.push(rel);
+  const afterErrors = Array.isArray(after.errors) ? after.errors.length : 0;
+  const removalDetection = after.truncated || after.enumerationComplete === false || afterErrors > 0
+    ? 'unknown' : 'complete';
+  if (removalDetection === 'complete') {
+    for (const rel of Object.keys(before.files)) if (!after.files[rel]) removed.push(rel);
+  }
   added.sort(); modified.sort(); removed.sort();
-  return {added, modified, removed, unchangedCount, before, after};
+  return {added, modified, removed, unchangedCount, before, after, removalDetection};
 }

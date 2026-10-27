@@ -1,36 +1,30 @@
 {
-  "date": "2026-10-23",
-  "sourceBaseline": "1.0.4",
+  "date": "2026-10-26",
+  "sourceBaseline": "1.0.8",
   "environment": {
-    "platform": "win32",
+    "platform": "linux",
     "arch": "x64",
-    "node": "24.18.1"
+    "node": "24.18.1",
+    "note": "Candidate workspace sandbox with local ignored exact-runtime baselines prepared for the protected host."
   },
   "checks": [
-    {
-      "command": "npm ci --ignore-scripts --no-audit --no-fund",
-      "exitCode": 0
-    },
     {
       "command": "npm test",
       "exitCode": 0,
       "usesModelRequests": false,
-      "tests": 185,
-      "pass": 183,
+      "tests": 293,
+      "pass": 293,
       "fail": 0,
       "cancelled": 0,
-      "skipped": 2,
+      "skipped": 0,
       "todo": 0,
-      "status": "partial",
-      "skipReason": "Two original Linux installation/baseline checks require separately installed runtimes and a local private registry."
-    },
-    {
-      "command": "Production source SHA-256 comparison against the 1.0.4 development candidate",
-      "matched": 10,
-      "mismatched": 0
+      "status": "passed",
+      "skipReason": null,
+      "note": "Run in the candidate workspace with local ignored exact-runtime baselines present; 293/293 passing across 28 suites (build via pretest)."
     }
   ],
   "realModelAcceptanceRepeated": false,
+  "hostControlledRealScenarios": "Not run by the source candidate. The protected host runs independent-checks.mjs and one real small-project delivery/import after source acceptance.",
   "linuxCi": "Inspect GitHub Actions for this commit; the workflow configuration itself is not evidence of passing checks.",
-  "publicationChanges": "Production src/ is unchanged. Preserved portable unit metadata samples and opt-in installed-runtime checks; pinned the unit provider; baseline refusal uses a temporary empty registry; added public metadata, documentation and stable LF source hashes."
+  "publicationChanges": "Bridge 1.0.8 candidate source, including the grouped review-repair fixes (external-pass recheck invalidation, contradictory receipt refusal, fresh explicit-review cycles, declared-log progress exclusion, portable receipt filenames, bounded reviewed-source hashing, raw-body idempotency, history.js guard coverage and delivery/checkpoint metadata sync for newly recorded pass/blocked/non-actionable receipts without live-source recapture or sealed-stage rewrites). Adds bounded same-live-session continuation after actual provider max_tokens/length exhaustion (autoContinue; legacy omission disabled, complete preset maxAttempts=2/noProgressLimit=2/totalBudgetMs=3600000; declared-scope content-hash progress; attempt/no-progress/budget stops; same-runtime evidence and no host verification on incomplete stages), the structured caller-reported external acceptance receipt dsh_submit_review (bounded input, scrubbed diagnostics, never-executed commands, exact settled-stage binding, reviewedSource byte pinning, durable pre-prompt receipt, idempotent/conflicting reviewId handling, one same-session repair for actionable fail, pass-vs-awaiting-recheck and no caller pass over a failing host command), and honest automation metrics/per-stage cause/elapsed evidence in task/result, checkpoints, delivery and bounded history. Preserves 1.0.7 persistence/source-scope/import/events/progress, 1.0.6 checkpoint recovery, 1.0.5 history/export, old tool schemas and legacy delivery Markdown rendering. Version 1.0.8 in package, lock root, runtime and MCP surface; SDK 0.2.1-rc.2 package baseline entries unchanged and only local bridge dist asset hashes recaptured; maintenance/guard.mjs gained only additive ASSETS coverage for history.js. Full scripted suite 293/293, zero failures/skips/todos. Ubuntu-DSH is the execution target; native Windows execution and native SDK conversation resume are deferred, and no real-model or token/time-saving claim is made."
 }

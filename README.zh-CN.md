@@ -2,9 +2,11 @@
 
 一个本地 MCP 桥接项目：由 Codex 统一规划和审查，将有明确边界的开发任务交给独立 DSH 运行时执行。
 
-**项目仍在开发中。** 当前公开源码基线为 **1.0.4**，是独立社区项目，不代表 OpenAI 或 DeepSeek 官方。尚未建立公开用户规模，也没有宣称支持任意模型或任意运行环境。
+**项目仍在开发中。** 当前公开源码基线为 **1.0.8**，是独立社区项目，不代表 OpenAI 或 DeepSeek 官方。尚未建立公开用户规模，也没有宣称支持任意模型或任意运行环境。
 
-1.0.4 新增可选的同会话自动回修、完整交付预设、验收文件哈希保护、交付包导出和任务度量，详见[版本说明](docs/RELEASE-1.0.4.md)。
+1.0.8 新增有界的同会话输出耗尽续跑（`autoContinue`）、结构化外部验收回执（`dsh_submit_review`），以及分离的自动化计数与诚实的阶段原因/耗时证据；保留 1.0.7 的持久化健康、源码范围/导入、增量事件与 live 进度、1.0.6 checkpoint 恢复、1.0.5 只读历史/历史导出和全部旧工具 schema。详见 [1.0.8 版本说明](docs/RELEASE-1.0.8.md)、[1.0.7 版本说明](docs/RELEASE-1.0.7.md) 与 [SDK resume 评估](docs/SDK-RESUME-ASSESSMENT.md)。
+
+该恢复不是 SDK 原生对话续接：不恢复旧 prompt/推理，不探测或复用旧 PID，旧任务证据保持只读。
 
 [English / 安装配置](README.md) · [调用约定](USAGE.md) · [验证记录与边界](docs/VALIDATION.md)
 
@@ -22,9 +24,9 @@ Bridge 把这些步骤接起来：Codex 提交目标、约束和验收条件；D
 2. `dsh_submit_task`：提交工作区、目标、约束、验收条件。
 3. `dsh_get_task` / `dsh_wait_task`：查询或等待进度。
 4. `dsh_get_result`：分别核对模型报告与 Bridge 观察到的证据。
-5. `dsh_continue_task`：读过结果后，提交明确审查意见并续跑；或用 `dsh_cancel_task` 结束运行时。
+5. `dsh_continue_task`：读过结果后，提交明确审查意见并续跑；或用 `dsh_submit_review` 记录结构化外部验收回执；或用 `dsh_cancel_task` 结束运行时。
 
-达到输出上限会标为 `incomplete`，不会当作成功。续跑依赖原进程仍然存活；Bridge 重启后不能恢复原来的活动会话。
+达到输出上限会标为 `incomplete`，不会当作成功。续跑依赖原进程仍然存活；Bridge 重启后不能恢复原来的活动会话。此时可用 `dsh_list_history` / `dsh_get_history` 读取有界、脱敏的只读记录；记录固定 `runtimeAttached=false`、`runtimeAlive=null`、`canContinue=false`、`canCancel=false`，不会探测或接管旧 PID。
 
 ## 安装与配置
 
@@ -42,13 +44,13 @@ MCP 启动命令为 `node <本仓库绝对路径>/dist/src/main.js`。运行时�
 
 正式任务省略工作参数时，默认使用 medium、16384 token 上限、每阶段 300 秒。显式短预算和 high 参数会保留。工具返回的 `effectiveParameters` 才是实际执行值。
 
-完整任务可指定 `deliveryPreset:"complete"`，同时提供独立验收命令与非空 `protectedVerificationFiles`：预设为 high、32768 token、每阶段 30 分钟、宿主验收 10 分钟，最多额外回修 3 次，全程预算 60 分钟；显式参数优先。自动回修默认关闭，启用前应完整声明验收脚本、断言、fixture 和依赖。
+完整任务可指定 `deliveryPreset:"complete"`，同时提供独立验收命令与非空 `protectedVerificationFiles`：预设为 high、32768 token、每阶段 30 分钟、宿主验收 10 分钟，最多额外回修 3 次，自动回修循环预算 60 分钟；显式参数优先。`totalBudgetMs` 只约束当前自动回修循环，不是所有手动 continue 阶段的硬上限；手动 continue 会重置自动回修计数并保留同一存活会话。自动回修默认关闭，启用前应完整声明验收脚本、断言、fixture 和依赖。
 
-任务结束后可用 `dsh_export_delivery` 导出记录的源码快照、脱敏证据、索引和哈希。导出不会重新验收，也不保证包含整个仓库。跳过运行时检查只能算部分验证，不能表述为完整通过。
+任务结束后可用 `dsh_export_delivery` 导出记录的源码快照、脱敏证据、索引和哈希；没有存活任务时也接受通过校验的历史 taskId。导出会检查最新阶段/交付索引绑定及全部产物哈希，复制已记录字节，不会重新验收、重新采集当前工作区或启动运行时。跳过运行时检查只能算部分验证，不能表述为完整通过。
 
 ## 当前限制
 
-- Windows 默认路径和部分测试仍保留原开发机的 D 盘约定，迁移到其他机器时需要显式配置。
+- Ubuntu-DSH 是既定执行目标；Windows 原生执行暂缓，不作为本版本的验收目标。Windows 默认路径和部分测试仍保留原开发机的 D 盘约定，迁移到其他机器时需要显式配置。
 - WSL 中运行的 Bridge 接受其内部可访问的 Linux 工作区路径，不能直接使用 Windows 路径。
 - 工作区准入检查不等于系统沙箱，子进程的实际权限取决于宿主环境。
 - 桌面插件不会自动继承；PTC 为显式选择，不自动切换。

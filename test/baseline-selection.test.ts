@@ -4,14 +4,15 @@
  * (or a false pass against the wrong runtime).
  */
 import assert from 'node:assert/strict';
-import {existsSync, mkdirSync, writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {describe, test} from 'node:test';
 
 import {cleanupDir, makeWorkspace, REPO_ROOT, TEST_ROOT} from './helpers.js';
 
-const {selectBaselineForRuntime} = await import(
+const {ASSETS, selectBaselineForRuntime} = await import(
   pathToFileURL(path.join(REPO_ROOT, 'maintenance', 'guard.mjs')).href
 );
 
@@ -19,6 +20,17 @@ const SELECTED_ROOT = '/home/agent/dsh-runtimes/0.2.1-rc.2-20261017';
 const DEFAULT_ROOT = '/home/agent/dsh-runtime';
 const LINUX_RUNTIMES_PRESENT = existsSync(SELECTED_ROOT) && existsSync(DEFAULT_ROOT)
   && existsSync(path.join(REPO_ROOT, 'baseline', 'runtime-baselines.json'));
+
+const REGISTRY_FILE = path.join(REPO_ROOT, 'baseline', 'runtime-baselines.json');
+const LOCAL_BASELINES: string[] = (() => {
+  if (!existsSync(REGISTRY_FILE)) return [];
+  try {
+    const registry = JSON.parse(readFileSync(REGISTRY_FILE, 'utf8')) as {baselines?: Array<{baselineFile?: unknown}>};
+    return (registry.baselines ?? [])
+      .map((entry) => typeof entry.baselineFile === 'string' ? path.resolve(REPO_ROOT, entry.baselineFile) : '')
+      .filter((file) => file.length > 0 && existsSync(file));
+  } catch { return []; }
+})();
 
 describe('trusted runtime baseline selection', () => {
   test('selects the explicit 0.2.1-rc.2 baseline for the actual selected runtime', {skip: !LINUX_RUNTIMES_PRESENT}, () => {
@@ -35,6 +47,29 @@ describe('trusted runtime baseline selection', () => {
     assert.equal(legacy.dshVersion, '0.2.0-rc.2');
     assert.match(legacy.baselineFile, /execution-profiles-baseline\.json$/);
     assert.notEqual(legacy.baselineFile, selectBaselineForRuntime(SELECTED_ROOT, REPO_ROOT).baselineFile);
+  });
+
+  test('guard ASSETS include the history projection and every configured asset exists', () => {
+    assert.ok(ASSETS.includes('dist/src/history.js'),
+      'history.js projects review/automation facts and must be guarded');
+    for (const rel of ASSETS) {
+      assert.ok(existsSync(path.join(REPO_ROOT, rel)), `guarded asset is missing: ${rel}`);
+    }
+    assert.match(readFileSync(path.join(REPO_ROOT, 'src/history.ts'), 'utf8'), /externalReview/,
+      'the guarded history module must be the review-aware source');
+  });
+
+  test('local runtime baselines bind every guarded asset, including history.js', {skip: LOCAL_BASELINES.length === 0}, () => {
+    for (const file of LOCAL_BASELINES) {
+      const baseline = JSON.parse(readFileSync(file, 'utf8')) as {files?: Record<string, string>};
+      assert.ok(baseline.files && typeof baseline.files === 'object', `baseline has no files map: ${file}`);
+      for (const rel of ASSETS) {
+        const key = `assets/${rel}`;
+        assert.ok(typeof baseline.files[key] === 'string', `baseline ${path.basename(file)} does not guard ${key}`);
+        const actual = createHash('sha256').update(readFileSync(path.join(REPO_ROOT, rel))).digest('hex');
+        assert.equal(baseline.files[key], actual, `baseline ${path.basename(file)} is stale for ${key}`);
+      }
+    }
   });
 
   test('refuses an unregistered runtime instead of falling back to another baseline', () => {

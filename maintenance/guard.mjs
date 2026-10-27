@@ -14,9 +14,11 @@ export const PACKAGES = Object.freeze([
 export const ASSETS = Object.freeze([
   'plugin/dsh-preset-sdk-server.mjs','plugin/preset-plugins.native.yml',
   'plugin/preset-plugins.ptc.yml','dist/src/execution-profiles.js',
-  'dist/src/tasks.js','dist/src/server.js','dist/src/runtime.js',
+  'dist/src/tasks.js','dist/src/recovery.js','dist/src/server.js','dist/src/runtime.js',
   'dist/src/delivery.js','dist/src/delivery-preset.js',
-  'dist/src/config.js','dist/src/prompts.js','maintenance/guard.mjs',
+  'dist/src/config.js','dist/src/prompts.js','dist/src/evidence.js','maintenance/guard.mjs',
+  'dist/src/persistence.js','dist/src/source-scope.js','dist/src/events.js',
+  'dist/src/delivery-import.js','dist/src/history.js','scripts/import-delivery.mjs',
 ]);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DEFAULT_BASELINE = path.join(ROOT, 'baseline', 'execution-profiles-baseline.json');

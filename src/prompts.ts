@@ -51,16 +51,19 @@ function bullets(items: readonly string[] | undefined): string {
 }
 
 /**
- * Stated to the model exactly as it is: these are real, program-enforced bounds.
- * Anything not on this list is a request, not an enforced guarantee.
+ * Stated to the model exactly as it is: these are admission and configuration facts, not an
+ * operating-system isolation proof. The bridge validates the workspace path and pins the SDK
+ * overlay to workspace-write; it cannot prove what the host OS, the SDK sandbox implementation
+ * or an arbitrary child process can write. Anything not on this list is a request.
  */
 function enforcedBounds(workspace: string): string {
   return [
     'The bridge enforces these bounds programmatically:',
-    `- The execution sandbox root is ${workspace}; the SDK runs with sandbox mode "workspace-write".`,
+    `- Workspace admission: ${workspace} was resolved and admitted against the configured allowed roots.`,
+    '- SDK configuration: the generated task overlay sets sandbox mode "workspace-write" for this task.',
     '- The bridge starts its own private SDK process for this task; it does not touch any other DSH session.',
     '- Only the base tools of this SDK runtime are loaded. Desktop plugins are NOT loaded.',
-    '- Nothing outside the workspace is writable, and the bridge rejects any workspace outside its allowed roots.',
+    '- That is workspace admission plus SDK configuration, not an OS sandbox guarantee. OS/filesystem isolation outside the workspace has NOT been proved, and this prompt makes no claim that every path outside the workspace is unwritable.',
     'Anything else you are asked to respect is an instruction, not a boundary the bridge can verify.',
   ].join('\n');
 }
@@ -107,12 +110,65 @@ export function firstStagePrompt(brief: TaskBrief): string {
   return parts.join('\n');
 }
 
+/**
+ * First prompt of a NEW task created by checkpoint recovery. The old conversation is deliberately
+ * absent: only the checked original goal/constraints/acceptance, a bounded recovery summary and
+ * the caller's current instructions are sent. This is not a native SDK session resume.
+ */
+export function recoveryPrompt(
+  brief: TaskBrief,
+  sourceTaskId: string,
+  recoverySummary: string,
+  instructions: string,
+): string {
+  const parts: string[] = [];
+  parts.push(`You are executing stage 1 of a NEW task ${brief.taskId}, recovered from persisted task ${sourceTaskId}.`);
+  parts.push('Codex is the orchestrator. You execute this stage and stop.');
+  parts.push('');
+  parts.push('## Recovery context');
+  parts.push('This is a NEW SDK session. The earlier conversation, prompt and model-internal reasoning are NOT available; only the bounded checkpoint summary below is carried forward.');
+  parts.push(recoverySummary.trim());
+  parts.push('');
+  parts.push('## Original goal');
+  parts.push(brief.goal.trim());
+  parts.push('');
+  parts.push('## Original constraints');
+  parts.push(bullets(brief.constraints));
+  parts.push('');
+  parts.push('## Current instructions');
+  parts.push(instructions.trim());
+  parts.push('');
+  parts.push('## Acceptance');
+  parts.push(brief.acceptance?.trim() ?? '(Codex did not supply an explicit acceptance check)');
+  parts.push('');
+  parts.push(deliveryWorkflow());
+  if (brief.verificationCommand && brief.verificationCommand.length > 0) {
+    parts.push('');
+    parts.push(HOST_CHECK_NOTICE);
+  }
+  parts.push('');
+  parts.push('## Boundaries');
+  parts.push(enforcedBounds(brief.workspace));
+  parts.push('');
+  parts.push('## How to finish this stage');
+  parts.push('1. Do the work with your own tools. Prefer running the real check over asserting it passes.');
+  parts.push('2. Edit files in place; do not create a report-only deliverable.');
+  parts.push('3. End your final message with exactly these three sections, in this order:');
+  parts.push('   CHANGED: files you created or modified, one per line, with the path.');
+  parts.push('   RAN: each command you executed and its observed outcome.');
+  parts.push('   UNRESOLVED: anything you could not do, could not verify, or that you are unsure about.');
+  parts.push('   If a section is empty, write "none" under it. Do not omit a section.');
+  parts.push('4. Stop when this stage is done. Do not start work beyond the goal above.');
+  parts.push('');
+  parts.push(`bridge=${BRIDGE_VERSION}`);
+  return parts.join('\n');
+}
+
 export function continuationPrompt(
   brief: TaskBrief,
   review: string,
   priorReport: string,
-): string {
-  const parts: string[] = [];
+): string {  const parts: string[] = [];
   parts.push(`Stage ${brief.stage} of task ${brief.taskId}. This continues the SAME session, so your earlier work is in context.`);
   parts.push('');
   parts.push('## Review of your previous stage');
@@ -131,6 +187,64 @@ export function continuationPrompt(
     parts.push(brief.acceptance.trim());
   }
   parts.push('');
+  parts.push(deliveryWorkflow());
+  if (brief.constraints && brief.constraints.length > 0) {
+    parts.push('');
+    parts.push('## Constraints (unchanged)');
+    parts.push(bullets(brief.constraints));
+  }
+  if (brief.verificationCommand && brief.verificationCommand.length > 0) {
+    parts.push('');
+    parts.push(HOST_CHECK_NOTICE);
+  }
+  parts.push('');
+  parts.push('## Boundaries');
+  parts.push(enforcedBounds(brief.workspace));
+  parts.push('');
+  parts.push('End your final message with CHANGED / RAN / UNRESOLVED sections, as before.');
+  return parts.join('\n');
+}
+
+/**
+ * Bounded automatic continuation after the PROVIDER ended a turn on max_tokens/length. The
+ * previous stage is incomplete, so this is deliberately not described as a review or as
+ * acceptance. It stays in the same live session and asks for the same complete unit.
+ */
+export function autoContinuationPrompt(
+  brief: TaskBrief,
+  priorReport: string,
+  details: {attempt: number; maxAttempts: number; noProgressLimit: number},
+): string {
+  const parts: string[] = [];
+  parts.push(`Stage ${brief.stage} of task ${brief.taskId}. This continues the SAME live session after provider output exhaustion.`);
+  parts.push('');
+  parts.push('## Why this stage exists');
+  parts.push(
+    `The previous stage ended because the provider reported output exhaustion (max_tokens/length), not because the work was reviewed or accepted. `
+    + `This is bounded automatic continuation ${details.attempt} of at most ${details.maxAttempts}. `
+    + `It stops after ${details.noProgressLimit} consecutive exhausted stages without meaningful source progress.`,
+  );
+  parts.push('The earlier stage is preserved as incomplete evidence. Nothing in it is relabelled as a pass.');
+  parts.push('');
+  parts.push('## What this stage must produce');
+  parts.push(brief.goal.trim());
+  if (brief.acceptance && brief.acceptance.trim().length > 0) {
+    parts.push('');
+    parts.push('## Acceptance for this stage');
+    parts.push(brief.acceptance.trim());
+  }
+  parts.push('');
+  parts.push('## Continuation guidance');
+  parts.push('- Continue the same task; do not restart it as a new design or split it into fixed time slices.');
+  parts.push('- Make scoped source edits early so the next exhaustion still leaves real implementation progress on disk.');
+  parts.push('- Prefer task-local checks over analysis-only output, and keep working until the requested unit is complete.');
+  parts.push('- Do not change protected acceptance files, weaken checks or claim external verification you did not run.');
+  parts.push('');
+  if (priorReport.trim().length > 0) {
+    parts.push('## Your previous stage report (as recorded by the bridge)');
+    parts.push(priorReport.trim());
+    parts.push('');
+  }
   parts.push(deliveryWorkflow());
   if (brief.constraints && brief.constraints.length > 0) {
     parts.push('');

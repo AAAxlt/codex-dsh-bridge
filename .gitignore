@@ -12,6 +12,7 @@ coverage/
 Thumbs.db
 tasks/
 evidence/
+recovery/
 real-artifacts/
 .codex-dsh-bridge/
 .dsh/

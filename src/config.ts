@@ -11,7 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 export const BRIDGE_SERVER_NAME = 'codex-dsh-bridge';
-export const BRIDGE_VERSION = '1.0.4';
+export const BRIDGE_VERSION = '1.0.8';
 
 /** Route pinned by the prompt and re-verified against the live desktop profile patch. */
 const ROUTE_ID = process.env['DSH_BRIDGE_PROVIDER'] ?? 'opencode-go';

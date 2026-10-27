@@ -11,7 +11,7 @@ import {existsSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {after, before, describe, test} from 'node:test';
 import {
-  BRIDGE_MAIN, TEST_DATA_ROOT, cleanupDir, connectBridge, jsonOf, makeWorkspace,
+  BRIDGE_MAIN, REPO_ROOT, TEST_DATA_ROOT, cleanupDir, connectBridge, jsonOf, makeWorkspace,
   scriptedBridgeEnv, sleep, textOf, waitFor, type ConnectedClient,
 } from './helpers.js';
 
@@ -29,7 +29,8 @@ interface Bridge {
 const TOOL_NAMES = [
   'dsh_get_capabilities', 'dsh_submit_task', 'dsh_get_task', 'dsh_wait_task',
   'dsh_get_result', 'dsh_continue_task', 'dsh_cancel_task',
-  'dsh_export_delivery',
+  'dsh_export_delivery', 'dsh_list_history', 'dsh_get_history',
+  'dsh_get_events', 'dsh_prepare_recovery', 'dsh_recover_task', 'dsh_submit_review',
 ];
 
 /** Opens one bridge process with its own scripted-runtime scenario. */
@@ -88,6 +89,9 @@ describe('MCP surface', () => {
       assert.equal(byName.get('dsh_get_task')?.annotations?.readOnlyHint, true);
       assert.equal(byName.get('dsh_wait_task')?.annotations?.readOnlyHint, true);
       assert.equal(byName.get('dsh_get_result')?.annotations?.readOnlyHint, true);
+      assert.equal(byName.get('dsh_get_events')?.annotations?.readOnlyHint, true, 'bounded event paging must be read-only');
+      assert.equal(byName.get('dsh_list_history')?.annotations?.readOnlyHint, true, 'history listing must be read-only');
+      assert.equal(byName.get('dsh_get_history')?.annotations?.readOnlyHint, true, 'history detail must be read-only');
       assert.notEqual(byName.get('dsh_submit_task')?.annotations?.readOnlyHint, true, 'submit starts a model request and must not be advertised read-only');
       assert.notEqual(byName.get('dsh_continue_task')?.annotations?.readOnlyHint, true, 'continue starts a model request and must not be advertised read-only');
       assert.equal(byName.get('dsh_cancel_task')?.annotations?.destructiveHint, true, 'cancel kills a process and must be advertised destructive');
@@ -124,14 +128,21 @@ describe('read-only capability check', () => {
     try {
       const reply = await call(bridge.client, 'dsh_get_capabilities');
       assert.notEqual(reply.isError, true, textOf(reply));
+      const packageVersion = (JSON.parse(readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8')) as {version: string}).version;
       const payload = jsonOf<{
+        bridge: {version: string};
         modelRoute: {provider: string; model: string; api: string; baseURL: string; desktopProfileCheck: {matchesBridgeConstants: boolean; readable: boolean; error: string | null}};
         credential: {present: boolean; source: string; length: number; value?: string};
         sdkProtocol: {methodsThisBridgeUses: string[]; nativePerTurnCancel: boolean; methodProbe: {methods: Array<{method: string; found: boolean}>}};
-        capabilities: {restartRecovery: boolean; loadsDesktopPlugins: boolean};
+        capabilities: {restartRecovery: boolean; restartRecoveryMode: string; loadsDesktopPlugins: boolean; mcpTools: number; checkpointRecovery: {available: boolean; mode: string; nativeSdkConversationResume: boolean}};
+        workspaceBounds: {sandboxMode: string; isolation: string};
+        repairBudgetScope: {automaticRepair: string; notAnAllManualStagesCeiling: string; manualContinuation: string; nativeCrossProcessResume: boolean};
+        history: {tools: string[]; runtimeAttached: boolean; runtimeAlive: null; canContinue: boolean; canCancel: boolean};
         modelReachability: string;
       }>(reply);
 
+      assert.equal(payload.bridge.version, packageVersion, 'the running MCP server must advertise the package version');
+      assert.equal(payload.bridge.version, '1.0.8');
       assert.equal(payload.modelRoute.provider, 'opencode-go');
       assert.equal(payload.modelRoute.model, 'deepseek-flash');
       // Where a user profile exists (Windows) the pinned route is re-verified against it. Where
@@ -160,13 +171,30 @@ describe('read-only capability check', () => {
         assert.ok(!found.has(method), `${method} must be reported as absent before the bridge relies on it`);
       }
       assert.equal(payload.sdkProtocol.nativePerTurnCancel, false);
-      assert.equal(payload.capabilities.restartRecovery, false, 'the absence of restart recovery must be declared');
+      assert.equal(payload.capabilities.restartRecovery, true, 'checkpoint recovery must be declared');
+      assert.equal(payload.capabilities.restartRecoveryMode, 'checkpoint-new-session');
+      assert.equal(payload.capabilities.checkpointRecovery.available, true);
+      assert.equal(payload.capabilities.checkpointRecovery.mode, 'checkpoint-new-session');
+      assert.equal(payload.capabilities.checkpointRecovery.nativeSdkConversationResume, false);
       assert.equal(payload.capabilities.loadsDesktopPlugins, false, 'desktop plugins are not loaded and must not be implied');
+      assert.equal(payload.capabilities.mcpTools, 14, 'the capability surface must count both history, both recovery tools and dsh_get_events');
+      assert.match(payload.workspaceBounds.sandboxMode, /workspace-write/);
+      assert.match(payload.workspaceBounds.isolation, /NOT proved|not proved/i, 'configuration must not be promoted to an OS isolation claim');
+      assert.match(payload.repairBudgetScope.automaticRepair, /initial generation stage/i);
+      assert.match(payload.repairBudgetScope.automaticRepair, /initial host verification/i);
+      assert.match(payload.repairBudgetScope.notAnAllManualStagesCeiling, /NOT a hard ceiling|not a hard ceiling/i);
+      assert.match(payload.repairBudgetScope.manualContinuation, /resets/i);
+      assert.equal(payload.repairBudgetScope.nativeCrossProcessResume, false);
+      assert.deepEqual(payload.history.tools, ['dsh_list_history', 'dsh_get_history']);
+      assert.equal(payload.history.runtimeAttached, false);
+      assert.equal(payload.history.runtimeAlive, null);
+      assert.equal(payload.history.canContinue, false);
+      assert.equal(payload.history.canCancel, false);
 
       // Untested or unimplemented things must be stated as such.
       const text = textOf(reply);
       const all = text + JSON.stringify(payload);
-      assert.match(all, /restart/i, 'the absence of restart recovery must be declared');
+      assert.match(all, /restart|checkpoint/i, 'checkpoint recovery and its limits must be declared');
       assert.ok(!all.includes('sk-FAKE'), 'no secret shape may appear in a capability report');
     } finally {
       await bridge.close();
@@ -472,4 +500,106 @@ test('complete delivery automatically repairs and explicitly exports through rea
     assert.equal(index.metrics.autoRepairCount, 1);
     assert.equal(index.hostVerification.latest.status, 'passed');
   } finally { await bridge.close(); }
+});
+
+test('a restarted MCP server exposes history but refuses live control of the old task', async () => {
+  const workspace = freshWorkspace('history-restart');
+  let taskId = '';
+  const firstBridge = await openBridge('success');
+  try {
+    const submitted = await call(firstBridge.client, 'dsh_submit_task', {workspace, goal: 'Create notes.md for restart history.'});
+    assert.notEqual(submitted.isError, true, textOf(submitted));
+    taskId = jsonOf<{taskId: string}>(submitted).taskId;
+    const waited = jsonOf<{outcome: string}>(await call(firstBridge.client, 'dsh_wait_task', {taskId, timeoutMs: 20_000}));
+    assert.equal(waited.outcome, 'settled');
+  } finally {
+    await firstBridge.close();
+  }
+
+  const restarted = await openBridge('success');
+  try {
+    const listed = jsonOf<{source: string; runtimeAttached: boolean; runtimeAlive: null; canContinue: boolean; canCancel: boolean; tasks: Array<{taskId: string}>}>(
+      await call(restarted.client, 'dsh_list_history', {limit: 100}),
+    );
+    assert.equal(listed.source, 'persisted-history');
+    assert.equal(listed.runtimeAttached, false);
+    assert.equal(listed.runtimeAlive, null);
+    assert.equal(listed.canContinue, false);
+    assert.equal(listed.canCancel, false);
+    assert.ok(listed.tasks.some((item) => item.taskId === taskId));
+
+    const detail = jsonOf<{recordedState: string; lastRecordedState: string; runtimeAlive: null; canContinue: boolean}>(
+      await call(restarted.client, 'dsh_get_history', {taskId}),
+    );
+    assert.equal(detail.recordedState, 'awaiting_review');
+    assert.equal(detail.lastRecordedState, 'awaiting_review');
+    assert.equal(detail.runtimeAlive, null);
+    assert.equal(detail.canContinue, false);
+
+    const capabilities = jsonOf<{liveTasks: Array<{taskId: string}>}>(await call(restarted.client, 'dsh_get_capabilities'));
+    assert.ok(!capabilities.liveTasks.some((item) => item.taskId === taskId), 'history must not enter the live map');
+
+    for (const [name, args] of [
+      ['dsh_continue_task', {taskId, review: 'This must not resume a dead process.'}],
+      ['dsh_cancel_task', {taskId}],
+      ['dsh_wait_task', {taskId, timeoutMs: 1_000}],
+    ] as const) {
+      const refused = await call(restarted.client, name, args);
+      assert.equal(refused.isError, true, `${name} must refuse historical control`);
+      assert.match(textOf(refused), /historical_not_live|persisted read-only history/i, `${name} must say why`);
+    }
+  } finally {
+    await restarted.close();
+  }
+});
+
+
+test('MCP history projects a native verifier failure and bounds an untrusted status field', async () => {
+  const workspace = freshWorkspace('history-native-verification');
+  let taskId = '';
+  const firstBridge = await openBridge('success');
+  try {
+    const submitted = jsonOf<{taskId: string}>(await call(firstBridge.client, 'dsh_submit_task', {
+      workspace,
+      goal: 'Record a controlled failing verification.',
+      verificationCommand: [process.execPath, '-e', 'console.error("REVIEW_EXPECTED_FAILURE");process.exit(7)'],
+    }));
+    taskId = submitted.taskId;
+    const waited = jsonOf<{outcome: string}>(await call(firstBridge.client, 'dsh_wait_task', {taskId, timeoutMs: 20_000}));
+    assert.equal(waited.outcome, 'settled');
+  } finally {
+    await firstBridge.close();
+  }
+
+  const restarted = await openBridge('success');
+  try {
+    const before = jsonOf<any>(await call(restarted.client, 'dsh_get_history', {taskId}));
+    assert.equal(before.stage.observed.verification.status, 'failed');
+    assert.equal(before.stage.observed.verification.attempts, 1);
+    assert.equal(before.stage.observed.verification.lastRun.exitCode, 7);
+    assert.equal(before.stage.recordedResult.verification.status, 'failed');
+    assert.equal(before.stages[0].verificationStatus, 'failed');
+
+    const taskFile = path.join(TEST_DATA_ROOT, 'tasks', taskId, 'task.json');
+    const saved = readFileSync(taskFile);
+    const secret = 'sk-MCPUNTRUSTEDSTATUS000000000000000000000000';
+    try {
+      const record = JSON.parse(saved.toString());
+      record.stages[0].verification = {status: secret + 'x'.repeat(2 * 1024 * 1024), exitCode: 7};
+      record.workspace = `${secret} /tmp/untrusted-workspace`;
+      writeFileSync(taskFile, JSON.stringify(record));
+      const reply = await call(restarted.client, 'dsh_get_history', {taskId});
+      assert.notEqual(reply.isError, true, textOf(reply));
+      const text = textOf(reply);
+      assert.ok(!text.includes(secret), 'MCP reply must not include an untrusted status or workspace secret');
+      const mutated = jsonOf<any>(reply);
+      assert.ok(mutated.responseBytes <= 512 * 1024, `response ${mutated.responseBytes} exceeds the bound`);
+      assert.ok(['pending', 'passed', 'failed', 'timed-out', 'errored', 'not-run', 'not-configured', 'cancelled-during-run']
+        .includes(mutated.stages[0].verificationStatus));
+    } finally {
+      writeFileSync(taskFile, saved);
+    }
+  } finally {
+    await restarted.close();
+  }
 });

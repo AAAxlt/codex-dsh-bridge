@@ -2,9 +2,9 @@
 
 A local MCP bridge that lets Codex delegate bounded development tasks to a separate DSH agent harness, inspect the evidence, and explicitly decide whether to continue.
 
-**Development status:** work in progress. The current source baseline is **1.0.4**. This is an independent community project, with no claim of affiliation with OpenAI or DeepSeek. Public adoption and cross-model coverage have not been established.
+**Development status:** work in progress. The current source baseline is **1.0.8**. This is an independent community project, with no claim of affiliation with OpenAI or DeepSeek. Public adoption and cross-model coverage have not been established.
 
-Version 1.0.4 adds optional same-session repair, a complete-delivery preset, protected verifier files, delivery exports, and task metrics. See the [release notes](docs/RELEASE-1.0.4.md).
+Version 1.0.8 adds bounded same-live-session continuation after real provider output exhaustion (`autoContinue`), structured caller-reported external acceptance receipts (`dsh_submit_review`), and separate automation metrics with honest per-stage cause/elapsed evidence. It preserves 1.0.7 persistence health, source-scope/import, event paging and live progress, 1.0.6 checkpoint recovery, 1.0.5 read-only history and every old tool schema. See the [1.0.8 release notes](docs/RELEASE-1.0.8.md), [1.0.7 release notes](docs/RELEASE-1.0.7.md) and the [SDK resume assessment](docs/SDK-RESUME-ASSESSMENT.md).
 
 [中文说明](README.zh-CN.md) · [Calling conventions](USAGE.md) · [Validation and limitations](docs/VALIDATION.md)
 
@@ -20,11 +20,13 @@ The project is also a place to develop reproducible harness and model compatibil
 
 1. Inspect configuration with `dsh_get_capabilities`.
 2. Submit a workspace, goal, constraints, and acceptance criteria with `dsh_submit_task`.
-3. Observe progress with `dsh_get_task` or `dsh_wait_task`.
+3. Observe progress with `dsh_get_task` / `dsh_wait_task`; page detailed events with `dsh_get_events` (bounded cursor, never a whole-file read).
 4. Read `dsh_get_result`, checking `modelReport` and `bridgeObserved` separately.
-5. Supply an actual review to `dsh_continue_task`, or end the runtime with `dsh_cancel_task`.
+5. Supply an actual review to `dsh_continue_task`, record a structured external receipt with `dsh_submit_review`, or end the runtime with `dsh_cancel_task`.
+6. After a bridge restart, inspect recorded tasks with `dsh_list_history` / `dsh_get_history`; `dsh_get_events` can also page their recorded logs read-only.
+7. If the work must continue, call `dsh_prepare_recovery` and then `dsh_recover_task` to start a NEW task/session from the persisted checkpoint. The old task stays read-only; the new task gets its own stage list and evidence.
 
-A returned report is evidence for review, not automatic acceptance. Continuation requires the original runtime to remain alive. There is no recovery of live sessions across bridge restarts.
+A returned report is evidence for review, not automatic acceptance. Continuation requires the original runtime to remain alive. Checkpoint recovery is not native SDK conversation resume: it starts a new session, does not restore the old prompt/reasoning, and never probes or reuses the old PID.
 
 ## Build and run
 
@@ -36,7 +38,7 @@ npm run build
 npm test
 ```
 
-The ordinary suite uses scripted execution and synthetic package metadata, requires no installed DSH runtime, and makes no model requests. The initial automated CI targets Ubuntu. Some Windows tests retain the original `D:\AGENTS` scratch-directory convention; Windows CI portability remains unfinished.
+The ordinary suite uses scripted execution and synthetic package metadata, requires no installed DSH runtime, and makes no model requests. Ubuntu-DSH is the intended execution target; native Windows execution is deferred. Some Windows tests retain the original `D:\AGENTS` scratch-directory convention, and Windows-native host acceptance is not claimed.
 
 Actual delegation additionally needs a separately installed **community DSH runtime**. The development baseline used `@deepseek-ai/dsh` **0.2.1-rc.2**. DSH and its SDK packages are not bundled or installed by this repository. Compatibility with later versions must be checked rather than assumed.
 
@@ -91,13 +93,17 @@ Omitted work parameters select `reasoningEffort=medium`, `maxTokens=16384`, and 
 
 `verificationCommand` is an optional argv array executed by the bridge in the workspace. Its exit code is recorded independently of the model report. Long MCP waits also require a client request timeout above the floor reported by capabilities.
 
-For a complete implementation and repair loop, set `deliveryPreset: "complete"` and provide both `verificationCommand` and non-empty `protectedVerificationFiles`. This selects high reasoning, 32768 tokens, a 30-minute stage budget, and up to three extra repair stages. Explicit overrides remain authoritative. Auto-repair is otherwise off by default. Review [USAGE.md](USAGE.md) before enabling it; verifier dependencies must be declared by the caller.
+For a complete implementation and repair loop, set `deliveryPreset: "complete"` and provide both `verificationCommand` and non-empty `protectedVerificationFiles`. This selects high reasoning, 32768 tokens, a 30-minute stage budget, and up to three extra repair stages. Explicit overrides remain authoritative. Auto-repair is otherwise off by default. `autoRepair.totalBudgetMs` bounds the current automatic-repair cycle, not all manual continuation stages; a manual continuation resets the automatic-repair counters in the same live session. Review [USAGE.md](USAGE.md) before enabling it; verifier dependencies must be declared by the caller.
 
-Use `dsh_export_delivery` to copy a settled task's recorded source snapshots, evidence, and indexes to a new allowed directory. Export validates hashes but does not repeat acceptance. Runtime-dependent baseline checks remain separate from portable scripted checks; skipped checks are not a full runtime pass.
+Use `dsh_list_history` and `dsh_get_history` after a restart to read bounded, scrubbed, read-only records. Those records fix `runtimeAttached=false`, `runtimeAlive=null`, `canContinue=false` and `canCancel=false`; the recorded PID is never probed. Continue/cancel/wait refuse a historical id with `historical_not_live`.
+
+Use `dsh_prepare_recovery` to validate a persisted checkpoint and current workspace and obtain a `planToken`, then `dsh_recover_task` with fresh instructions and fresh verification settings. When the source configured verification or pinned protected files, the recorded argv is not executed and the original pins cannot be dropped. Retries with the same plan token return the same new task with `alreadyRecovered=true`; a source recorded running is refused unless the caller explicitly acknowledges `allowUnsettledSource=true`.
+
+Use `dsh_export_delivery` to copy a settled task's recorded source snapshots, evidence, and indexes to a new allowed directory. With `deliverySource`, the index additionally binds `source.mode`, `source.scope`, `source.final` and (patch) `source.baseline`; import it with `node scripts/import-delivery.mjs --bundle <export> --destination <dir>` (dry run) and add `--apply` to write. Patch import verifies the destination's exact baseline and retains a backup transaction; complete import requires a new/empty directory. It also accepts a validated historical task id when no live task exists. Export validates the latest task/stage/index binding and every artifact hash, copies recorded source bytes, and does not repeat acceptance or recapture the workspace. Runtime-dependent baseline checks remain separate from portable scripted checks; skipped checks are not a full runtime pass.
 
 ## Boundaries and known gaps
 
-- The allowed-root check validates task admission. It is **not an operating-system sandbox** and does not isolate arbitrary child commands. Use a separate OS account, container, VM, or other appropriate host boundary for untrusted work.
+- The allowed-root check validates task admission, and the SDK overlay is configured with `workspace-write`. That is **not proof of OS/filesystem isolation** and does not isolate arbitrary child commands. Use a separate OS account, container, VM, or other appropriate host boundary for untrusted work.
 - The default concurrency limit is one task. Model calls require your own authorized provider access and can incur charges.
 - A read-only capability probe does not establish model reachability or end-to-end acceptance.
 - Cancellation records process cleanup evidence, with platform-dependent coverage. It does not guarantee capture of arbitrary escaped descendants.
